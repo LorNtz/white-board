@@ -38,6 +38,26 @@ export function fixResolution (canvas) {
   context.scale(ratio, ratio)
 }
 
+/**
+ * retriev position infomation from a MouseEvent or Touch
+ * @param {MouseEvent | Touch} event 
+ */
+export function getPositionFromMouseOrTouchEvent (event) {
+  if (event.touches && event.touches.length === 1) {
+    return {
+      x: event.touches[0].clientX,
+      y: event.touches[0].clientY
+    }
+  } else if (event.clientX && event.clientY) {
+    return {
+      x: event.clientX,
+      y: event.clientY
+    }
+  } else {
+    throw new Error('event has no supported position info')
+  }
+}
+
 export const randomBetween = (a, b) => {
   return a + Math.random() * (b - a)
 }
