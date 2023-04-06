@@ -35,13 +35,15 @@ import UI from '../components/UI';
 
 const generator = rough.generator()
 
-const createWrappedElement = ({ zIndex, id, x1, y1, x2, y2, elementType, seed }) => {
+const createWrappedElement = ({ zIndex, id, x1, y1, x2, y2, type, seed }) => {
   let roughElement
+  
   seed = seed || rough.newSeed()
   let opts = {
     seed,
   }
-  switch (elementType) {
+  
+  switch (type) {
     case TOOL_TYPE.LINE:
       roughElement = generator.line(x1, y1, x2, y2, opts)
       break
@@ -50,9 +52,17 @@ const createWrappedElement = ({ zIndex, id, x1, y1, x2, y2, elementType, seed })
       roughElement = generator.rectangle(x1, y1, x2 - x1, y2 - y1, opts)
       break
 
+    case TOOL_TYPE.ELLIPSE:
+      const width = x2 - x1
+      const height = y2 - y1
+      const [x, y] = [x1 + width / 2, y1 + height / 2]
+      roughElement = generator.ellipse(x, y, width, height, opts)
+      break
+
     default:
-      throw new Error(`creation of element of ${elementType} type is not implemented yet`)
+      throw new Error(`creation of element of ${type} type is not implemented yet`)
   }
+  
   id = id || uuid24bit()
   return {
     zIndex,
@@ -61,7 +71,7 @@ const createWrappedElement = ({ zIndex, id, x1, y1, x2, y2, elementType, seed })
     y1,
     x2,
     y2,
-    type: elementType,
+    type,
     roughElement
   }
 }
@@ -142,14 +152,14 @@ function WhiteBoard ({ width, height }) {
         y1: canvasY,
         x2: canvasX,
         y2: canvasY,
-        elementType: activeToolType,
+        type: activeToolType,
       })
       setElement(element.id, element)
       setElementOnDrawing(element)
     }
   }
 
-  const updateElement = (id, { x1, y1, x2, y2, type }) => {
+  const updateElement = (id, { x1, y1, x2, y2, type: newType }) => {
     const element = elementMap.get(id)
     const seed = getSeedFromRoughElement(element.roughElement)
     const updatedElement = createWrappedElement({
@@ -158,7 +168,7 @@ function WhiteBoard ({ width, height }) {
       y1,
       x2,
       y2,
-      elementType: type,
+      type: newType || element.type,
       seed,
     })
     setElement(id, updatedElement)
@@ -210,7 +220,6 @@ function WhiteBoard ({ width, height }) {
         y1,
         x2,
         y2,
-        type: activeToolType,
       })
       
     } else if (currentAction === 'moving') {
@@ -225,7 +234,6 @@ function WhiteBoard ({ width, height }) {
         y1: nextY,
         x2: nextX + width,
         y2: nextY + height,
-        type
       })
     }
   }
