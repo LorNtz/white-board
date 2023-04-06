@@ -1,5 +1,5 @@
 import {
-  TOOL_TYPE,
+  ELEMENT_TYPE,
 } from '../constants'
 
 /**
@@ -111,14 +111,14 @@ export function posIsWithinElement (x, y, element) {
   const { x1, y1, x2, y2, type } = element
 
   const checkers = {
-    [TOOL_TYPE.RECTANGLE]: () => {
+    [ELEMENT_TYPE.RECTANGLE]: () => {
       const minX = Math.min(x1, x2)
       const maxX = Math.max(x1, x2)
       const minY = Math.min(y1, y2)
       const maxY = Math.max(y1, y2)
       return x >= minX && x <= maxX && y >= minY && y <= maxY
     },
-    [TOOL_TYPE.LINE]: () => {
+    [ELEMENT_TYPE.LINE]: () => {
       const a = { x: x1, y: y1 }
       const b = { x: x2, y: y2 }
       const c = { x, y }
@@ -126,7 +126,7 @@ export function posIsWithinElement (x, y, element) {
       const epsilon = 1
       return Math.abs(diff) < epsilon
     },
-    [TOOL_TYPE.ELLIPSE]: () => {
+    [ELEMENT_TYPE.ELLIPSE]: () => {
       const [centerX, centerY] = [(x1 + x2) / 2, (y1 + y2) / 2]
       const [a, b] = [(x2 - x1) / 2, (y2 - y1) / 2]
       const p = Math.pow((x - centerX), 2) / Math.pow(a, 2) 

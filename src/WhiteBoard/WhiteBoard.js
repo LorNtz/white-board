@@ -28,6 +28,8 @@ import {
   MIN_ZOOM,
   MAX_ZOOM,
   TOOL_TYPE,
+  ELEMENT_TYPE,
+  TOOL_ELEMENT_MAP,
 } from '../constants'
 import './WhiteBoard.css'
 import { StageStateContext } from './context.js'
@@ -44,15 +46,15 @@ const createWrappedElement = ({ zIndex, id, x1, y1, x2, y2, type, seed }) => {
   }
   
   switch (type) {
-    case TOOL_TYPE.LINE:
+    case ELEMENT_TYPE.LINE:
       roughElement = generator.line(x1, y1, x2, y2, opts)
       break
 
-    case TOOL_TYPE.RECTANGLE:
+    case ELEMENT_TYPE.RECTANGLE:
       roughElement = generator.rectangle(x1, y1, x2 - x1, y2 - y1, opts)
       break
 
-    case TOOL_TYPE.ELLIPSE:
+    case ELEMENT_TYPE.ELLIPSE:
       const width = x2 - x1
       const height = y2 - y1
       const [x, y] = [x1 + width / 2, y1 + height / 2]
@@ -146,13 +148,14 @@ function WhiteBoard ({ width, height }) {
     ){
       setCurrentAction('drawing')
       const zIndex = elements.length
+      const elementType = TOOL_ELEMENT_MAP[activeToolType]
       const element = createWrappedElement({
         zIndex,
         x1: canvasX,
         y1: canvasY,
         x2: canvasX,
         y2: canvasY,
-        type: activeToolType,
+        type: elementType,
       })
       setElement(element.id, element)
       setElementOnDrawing(element)
