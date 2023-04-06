@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import rough from 'roughjs/bundled/rough.esm'
 import {
+  clamp,
   uuid24bit,
   fixResolution,
   correctCanvasCord,
@@ -57,7 +58,7 @@ const mouseState = {
 }
 let panningStartPos = { x: 0, y: 0 }
 
-function WhiteBoard ({width, height}) {
+function WhiteBoard ({ width, height }) {
   
   const [elementMap, setElement, setElementMap] = useElementContainer()
   const elements = [ ...elementMap.values() ]
@@ -69,6 +70,9 @@ function WhiteBoard ({width, height}) {
 
   const devicePixelRatio = useDevicePixelRatio()
   const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 })
+  const [cameraZoom, setCameraZoom] = useState(1)
+  const [zoomCenter, setZoomCenter] = useState({ x: width / 2, y: height / 2 })
+  const [scrollSensitivity, setScrollSensitivity] = useState(0.0005)
   
   const canvasRef = useRef(null)
   const [, setCanvasCursorType] = useCursorType(canvasRef.current, 'default')
@@ -82,14 +86,17 @@ function WhiteBoard ({width, height}) {
 
     if (activeToolType === 'pan' || mouseState.middle) {
       setCurrentAction('panning')
-      panningStartPos.x = x - cameraOffset.x
-      panningStartPos.y = y - cameraOffset.y
+      panningStartPos.x = x / cameraZoom - cameraOffset.x
+      panningStartPos.y = y / cameraZoom - cameraOffset.y
       return
     }
     
     let [correctedX, correctedY] = correctCanvasCord(canvas, x, y, {
       translateX: cameraOffset.x,
       translateY: cameraOffset.y,
+      zoom: cameraZoom,
+      zoomCenterX: zoomCenter.x,
+      zoomCenterY: zoomCenter.y
     })
     if (activeToolType === 'selection') {
       const element = getElementAtPosition(correctedX, correctedY, elements)
@@ -134,6 +141,9 @@ function WhiteBoard ({width, height}) {
     let [correctedX, correctedY] = correctCanvasCord(canvas, x, y, {
       translateX: cameraOffset.x,
       translateY: cameraOffset.y,
+      zoom: cameraZoom,
+      zoomCenterX: zoomCenter.x,
+      zoomCenterY: zoomCenter.y
     })
     
     if (activeToolType === 'pan') {
@@ -150,8 +160,8 @@ function WhiteBoard ({width, height}) {
       setCanvasCursorType('grabbing')
       
       setCameraOffset({
-        x: x - panningStartPos.x,
-        y: y - panningStartPos.y
+        x: x / cameraZoom - panningStartPos.x,
+        y: y / cameraZoom - panningStartPos.y
       })
       
       return
@@ -194,6 +204,20 @@ function WhiteBoard ({width, height}) {
     setElementOnDrawing(null)
   }
 
+  const handleWheel = (event) => {
+    if (currentAction === 'panning') return
+
+    // TODO: extract these constants to somewhere else
+    // may be a constants.js file
+    const MAX_ZOOM = 5
+    const MIN_ZOOM = 0.1
+    
+    const { deltaY } = event
+    const reversed = false  // TODO: make this a state in the future
+    const deltaZoom = reversed ? deltaY * scrollSensitivity : -deltaY * scrollSensitivity
+    setCameraZoom(prev => clamp(prev + deltaZoom, MIN_ZOOM, MAX_ZOOM))
+  }
+
   const handleClearCanvas = () => {
     setElementMap(new Map([]))
   }
@@ -204,19 +228,28 @@ function WhiteBoard ({width, height}) {
   }, [])
   
   useLayoutEffect(() => {
+    // TODO: extract these lines into a handleRef function
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
     const rc = rough.canvas(canvas)
 
+    // reset the transform matrix before clearRect
+    // to make sure always clearing the entire viewport of canvas
+    // even though the canvas has transformation applied
     ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0)
+    // clear the last frame before this frame starts drawing
     ctx.clearRect(0, 0, width, height)
+    
+    ctx.translate(zoomCenter.x, zoomCenter.y)
+    ctx.scale(cameraZoom, cameraZoom)
+    ctx.translate(-zoomCenter.x, -zoomCenter.y)
     
     ctx.translate(cameraOffset.x, cameraOffset.y)
     
     elements.forEach(({ roughElement }) => {
       rc.draw(roughElement)
     })
-  }, [elementMap, cameraOffset, devicePixelRatio])
+  }, [elementMap, cameraOffset, cameraZoom, devicePixelRatio])
   
   return (
     <canvas
@@ -227,6 +260,7 @@ function WhiteBoard ({width, height}) {
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onMouseMove={handleMouseMove}
+      onWheel={handleWheel}
     >
       This is fallback content
     </canvas>
