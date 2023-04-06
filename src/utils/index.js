@@ -2,34 +2,35 @@
  * correct a set of coordinates of a position and 
  * return coordinates coresponding to the canvas top-left corner
  * @param canvas {HTMLCanvasElement} canvas the canvas element
- * @param x {number} x clientX
- * @param y {number} y clientY
+ * @param clientX {number} clientX
+ * @param clientY {number} clientY
  * @returns {[number, number]} a tuple of corrected coordinates
  */
-export function correctCanvasCoord (canvas, x, y, opt = {}) {
+export function screenToCanvasCoord (canvas, clientX, clientY, opt = {}) {
   const defaultOptions = {
     translateX: 0,
     translateY: 0,
     zoom: 1,
-    zoomCenterX: 0,
-    zoomCenterY: 0,
+    origin: {
+      x: 0,
+      y: 0
+    }
   }
   const {
     translateX,
     translateY,
     zoom,
-    zoomCenterX,
-    zoomCenterY,
+    origin
   } = Object.assign({}, defaultOptions, opt)
 
   const boundingRect = canvas.getBoundingClientRect()
   const { left, top } = boundingRect
-  const [canvasElemX, canvasElemY] = [x - left, y - top]
+  const [x, y] = [clientX - left, clientY - top]
   
-  return [
-    zoomCenterX + (canvasElemX - zoomCenterX) / zoom - translateX, // corrected x coordinate
-    zoomCenterY + (canvasElemY - zoomCenterY) / zoom - translateY   // corrected y coordinate
-  ]
+  return {
+    x: (x - origin.x) / zoom - translateX,
+    y: (y - origin.y) / zoom - translateY
+  }
 }
 
 /**

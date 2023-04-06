@@ -4,8 +4,8 @@ import {
   clamp,
   uuid24bit,
   fixResolution,
-  correctCanvasCoord,
   posIsWithinElement,
+  screenToCanvasCoord,
   getElementAtPosition,
   getSeedFromRoughElement,
   getButtonNameFromMouseEvent,
@@ -51,10 +51,13 @@ const createWrappedElement = ({ zIndex, id, x1, y1, x2, y2, elementType, seed })
   }
 }
 
+// TODO: move this into a ref and maybe create a custom hook for it
 const mouseState = {
   left: false,
   middle: false,
-  right: false
+  right: false,
+  x: 0,
+  y: 0
 }
 let panningStartPos = { x: 0, y: 0 }
 
@@ -64,14 +67,14 @@ function WhiteBoard ({ width, height }) {
   const elements = [ ...elementMap.values() ]
   
   const [currentAction, setCurrentAction] = useState('none')
-  const [activeToolType, setActiveToolType] = useState('line')
+  const [activeToolType, setActiveToolType] = useState('rectangle')
   const [elementOnDragging, setElementOnDragging] = useState(null)
   const [elementOnDrawing, setElementOnDrawing] = useState(null)
 
   const devicePixelRatio = useDevicePixelRatio()
   const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 })
   const [cameraZoom, setCameraZoom] = useState(1)
-  const [zoomCenter, setZoomCenter] = useState({ x: width / 2, y: height / 2 })
+  const [zoomOrigin, setZoomOrigin] = useState({ x: 0, y: 0 })
   const [scrollSensitivity, setScrollSensitivity] = useState(0.0005)
   
   const canvasRef = useRef(null)
@@ -93,28 +96,30 @@ function WhiteBoard ({ width, height }) {
 
     if (!mouseState.left) return
     
-    let [correctedX, correctedY] = correctCanvasCoord(canvas, x, y, {
+    const {
+      x: canvasX,
+      y: canvasY,
+    } = screenToCanvasCoord(canvas, x, y, {
       translateX: cameraOffset.x,
       translateY: cameraOffset.y,
       zoom: cameraZoom,
-      zoomCenterX: zoomCenter.x,
-      zoomCenterY: zoomCenter.y
+      origin: zoomOrigin
     })
     if (activeToolType === 'selection') {
-      const element = getElementAtPosition(correctedX, correctedY, elements)
+      const element = getElementAtPosition(canvasX, canvasY, elements)
       if (element) {
         setCurrentAction('moving')
-        setElementOnDragging({ ...element, offsetX: correctedX - element.x1, offsetY: correctedY - element.y1 })
+        setElementOnDragging({ ...element, offsetX: canvasX - element.x1, offsetY: canvasY - element.y1 })
       }
     } else {
       setCurrentAction('drawing')
       const zIndex = elements.length
       const element = createWrappedElement({
         zIndex,
-        x1: correctedX,
-        y1: correctedY,
-        x2: correctedX,
-        y2: correctedY,
+        x1: canvasX,
+        y1: canvasY,
+        x2: canvasX,
+        y2: canvasY,
         elementType: activeToolType,
       })
       setElement(element.id, element)
@@ -140,18 +145,23 @@ function WhiteBoard ({ width, height }) {
   const handleMouseMove = (event) => {
     const canvas = canvasRef.current
     let { x, y } = getPositionFromMouseOrTouchEvent(event)
-    let [correctedX, correctedY] = correctCanvasCoord(canvas, x, y, {
+    mouseState.x = x
+    mouseState.y = y
+    
+    const {
+      x: canvasX,
+      y: canvasY,
+    } = screenToCanvasCoord(canvas, x, y, {
       translateX: cameraOffset.x,
       translateY: cameraOffset.y,
       zoom: cameraZoom,
-      zoomCenterX: zoomCenter.x,
-      zoomCenterY: zoomCenter.y
+      origin: zoomOrigin
     })
     
     if (activeToolType === 'pan') {
       setCanvasCursorType('grab')
     } else if (activeToolType === 'selection') {
-      elements.some(element => posIsWithinElement(correctedX, correctedY, element)) 
+      elements.some(element => posIsWithinElement(canvasX, canvasY, element)) 
         ? setCanvasCursorType('move') 
         : setCanvasCursorType('default')
     } else {
@@ -171,7 +181,7 @@ function WhiteBoard ({ width, height }) {
     
     if (currentAction === 'drawing') {
       const { id, x1, y1 } = elementOnDrawing
-      const [ x2, y2 ] = [correctedX, correctedY]
+      const [ x2, y2 ] = [canvasX, canvasY]
       
       updateElement(id, {
         x1,
@@ -185,8 +195,8 @@ function WhiteBoard ({ width, height }) {
       const { id, x1, x2, y1, y2, offsetX, offsetY, type } = elementOnDragging
       const width = x2 - x1
       const height = y2 - y1
-      const nextX = correctedX - offsetX
-      const nextY = correctedY - offsetY
+      const nextX = canvasX - offsetX
+      const nextY = canvasY - offsetY
       
       updateElement(id, {
         x1: nextX,
@@ -214,19 +224,50 @@ function WhiteBoard ({ width, height }) {
   const handleContextMenu = (event) => {
     event.preventDefault()
   }
+  
+  const adjustZoom = ({
+    mode, increment, multiplier
+  }) => {
+    // TODO: extract these constants to somewhere else
+    // may be a constants.js file
+    const MAX_ZOOM = 16
+    const MIN_ZOOM = 0.1
+    const normalizeZoomFactor = (factor) => clamp(factor, MIN_ZOOM, MAX_ZOOM)
+    
+    let newZoom = cameraZoom
+    if (mode === 'increment') {
+      newZoom = normalizeZoomFactor(cameraZoom + increment)
+    } else if (mode === 'multiplier') {
+      newZoom = normalizeZoomFactor(cameraZoom * multiplier)
+    } else {
+      throw new Error(`Unsupported zoom mode: ${mode}`)
+    }
+    const scaleBy = newZoom / cameraZoom
+    setZoomOrigin({
+      x: mouseState.x - (mouseState.x - zoomOrigin.x) * scaleBy,
+      y: mouseState.y - (mouseState.y - zoomOrigin.y) * scaleBy
+    })
+    setCameraZoom(newZoom)
+  }
 
   const handleWheel = (event) => {
     if (currentAction === 'panning') return
 
-    // TODO: extract these constants to somewhere else
-    // may be a constants.js file
-    const MAX_ZOOM = 5
-    const MIN_ZOOM = 0.1
-    
     const { deltaY } = event
     const reversed = false  // TODO: make this a state in the future
-    const deltaZoom = reversed ? deltaY * scrollSensitivity : -deltaY * scrollSensitivity
-    setCameraZoom(prev => clamp(prev + deltaZoom, MIN_ZOOM, MAX_ZOOM))
+    const supportSmoothScrolling = true  // TODO: make this a configurables state
+    
+    if (supportSmoothScrolling) {
+      const increment = reversed 
+        ? deltaY * scrollSensitivity 
+        : -deltaY * scrollSensitivity
+      adjustZoom({ mode: 'increment', increment: increment})
+    } else {
+      const factor = 0.1
+      deltaY < 0 
+        ? adjustZoom({ mode: 'multiply', multiplier: 1 + factor }) 
+        : adjustZoom({ mode: 'multiply', multiplier: 1 - factor })
+    }
   }
 
   const handleClearCanvas = () => {
@@ -251,16 +292,16 @@ function WhiteBoard ({ width, height }) {
     // clear the last frame before this frame starts drawing
     ctx.clearRect(0, 0, width, height)
     
-    ctx.translate(zoomCenter.x, zoomCenter.y)
-    ctx.scale(cameraZoom, cameraZoom)
-    ctx.translate(-zoomCenter.x, -zoomCenter.y)
+    // zooming
+    ctx.transform(cameraZoom, 0, 0, cameraZoom, zoomOrigin.x, zoomOrigin.y)
     
+    // panning
     ctx.translate(cameraOffset.x, cameraOffset.y)
     
     elements.forEach(({ roughElement }) => {
       rc.draw(roughElement)
     })
-  }, [elementMap, cameraOffset, cameraZoom, devicePixelRatio])
+  }, [elementMap, cameraOffset, cameraZoom, zoomOrigin, devicePixelRatio])
   
   return (
     <canvas
