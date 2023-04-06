@@ -11,18 +11,24 @@ export function correctCanvasCord (canvas, x, y, opt = {}) {
     translateX: 0,
     translateY: 0,
     zoom: 1,
+    zoomCenterX: 0,
+    zoomCenterY: 0,
   }
   const {
     translateX,
     translateY,
-    zoom
+    zoom,
+    zoomCenterX,
+    zoomCenterY,
   } = Object.assign({}, defaultOptions, opt)
 
   const boundingRect = canvas.getBoundingClientRect()
   const { left, top } = boundingRect
+  const [canvasElemX, canvasElemY] = [x - left, y - top]
+  
   return [
-    (x - left - translateX) / zoom, // corrected x coordinate
-    (y - top - translateY) / zoom   // corrected y coordinate
+    zoomCenterX + (canvasElemX - zoomCenterX) / zoom - translateX, // corrected x coordinate
+    zoomCenterY + (canvasElemY - zoomCenterY) / zoom - translateY   // corrected y coordinate
   ]
 }
 
@@ -131,6 +137,12 @@ export function posIsWithinElement (x, y, element) {
  */
 export function distance2D (a, b) {
   return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2))
+}
+
+export function clamp (val, min, max) {
+  val = Math.min(val, max)
+  val = Math.max(val, min)
+  return val
 }
 
 export function getSeedFromRoughElement (roughElement) {
