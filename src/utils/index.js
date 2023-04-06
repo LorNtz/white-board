@@ -144,3 +144,17 @@ export function uuid24bit () {
     return array.join('-')
   }
 }
+
+export function getButtonNameFromMouseEvent (event) {
+  const button = event.button
+  switch (button) {
+    case 0:
+      return 'left'
+    case 1:
+      return 'middle'
+    case 2:
+      return 'right'
+    default:
+    throw new Error(`Invalid button: ${button}`)
+  }
+}

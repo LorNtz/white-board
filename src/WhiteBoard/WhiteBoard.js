@@ -7,7 +7,8 @@ import {
   posIsWithinElement,
   getElementAtPosition,
   getSeedFromRoughElement,
-  getPositionFromMouseOrTouchEvent
+  getButtonNameFromMouseEvent,
+  getPositionFromMouseOrTouchEvent,
 } from "../utils";
 import {
   useCursorType,
@@ -49,6 +50,11 @@ const createWrappedElement = ({ zIndex, id, x1, y1, x2, y2, elementType, seed })
   }
 }
 
+const mouseState = {
+  left: false,
+  middle: false,
+  right: false
+}
 let panningStartPos = { x: 0, y: 0 }
 
 function WhiteBoard ({width, height}) {
@@ -56,7 +62,6 @@ function WhiteBoard ({width, height}) {
   const [elementMap, setElement, setElementMap] = useElementContainer()
   const elements = [ ...elementMap.values() ]
   
-  const [mouseDown, setMouseDown] = useState(false)
   const [currentAction, setCurrentAction] = useState('none')
   const [activeToolType, setActiveToolType] = useState('line')
   const [elementOnDragging, setElementOnDragging] = useState(null)
@@ -69,11 +74,13 @@ function WhiteBoard ({width, height}) {
   const [, setCanvasCursorType] = useCursorType(canvasRef.current, 'default')
   
   const handleMouseDown = (event) => {
-    setMouseDown(true)
+    const buttonName = getButtonNameFromMouseEvent(event)
+    mouseState[buttonName] = true
+    
     const canvas = canvasRef.current
     let { x, y } = getPositionFromMouseOrTouchEvent(event)
 
-    if (activeToolType === 'pan') {
+    if (activeToolType === 'pan' || mouseState.middle) {
       setCurrentAction('panning')
       panningStartPos.x = x - cameraOffset.x
       panningStartPos.y = y - cameraOffset.y
@@ -139,8 +146,6 @@ function WhiteBoard ({width, height}) {
       setCanvasCursorType('default')
     }
     
-    if (!mouseDown) return
-
     if (currentAction === 'panning') {
       setCanvasCursorType('grabbing')
       
@@ -182,7 +187,8 @@ function WhiteBoard ({width, height}) {
   }
 
   const handleMouseUp = (event) => {
-    setMouseDown(false)
+    const buttonName = getButtonNameFromMouseEvent(event)
+    mouseState[buttonName] = false
     setCurrentAction('none')
     setElementOnDragging(null)
     setElementOnDrawing(null)
