@@ -37,3 +37,7 @@ export function fixResolution (canvas) {
 
   context.scale(ratio, ratio)
 }
+
+export const randomBetween = (a, b) => {
+  return a + Math.random() * (b - a)
+}

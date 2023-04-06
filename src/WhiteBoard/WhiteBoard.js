@@ -5,13 +5,20 @@ import './WhiteBoard.css'
 
 const generator = rough.generator()
 
-const createWrappedElement = (x1, y1, x2, y2) => {
-  const roughElement = generator.line(x1, y1, x2, y2)
-  return { x1, y1, x2, y2, roughElement }
-}
+const createWrappedElement = (x1, y1, x2, y2, elementType) => {
+  let roughElement
+  switch (elementType) {
+    case 'line':
+      roughElement = generator.line(x1, y1, x2, y2)
+      break;
 
-const random = (a, b) => {
-  return a + Math.random() * (b - a)
+    case 'rectangle':
+      roughElement = generator.rectangle(x1, y1, x2 - x1, y2 - y1)
+
+    default:
+      break;
+  }
+  return { x1, y1, x2, y2, roughElement }
 }
 
 function WhiteBoard () {
