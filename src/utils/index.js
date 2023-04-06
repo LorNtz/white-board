@@ -20,6 +20,8 @@ export function correctCanvasCord (canvas, x, y) {
  * @param {HTMLCanvasElement} canvas the canvas element to be fixed with resolution
  */
 export function fixResolution (canvas) {
+  if (!canvas) return
+  
   const context = canvas.getContext('2d')
   const ratio = window.devicePixelRatio || 1
 
@@ -48,7 +50,7 @@ export function getPositionFromMouseOrTouchEvent (event) {
       x: event.touches[0].clientX,
       y: event.touches[0].clientY
     }
-  } else if (event.clientX && event.clientY) {
+  } else if (event.clientX != undefined && event.clientY != undefined) {
     return {
       x: event.clientX,
       y: event.clientY
