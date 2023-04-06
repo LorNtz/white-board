@@ -51,7 +51,7 @@ function WhiteBoard () {
   const [elementOnDragging, setElementOnDragging] = useState(null)
   
   const canvasRef = useRef(null)
-  const [canvasCursorType, setCanvasCursorType] = useCursorType(canvasRef.current, 'default')
+  const [, setCanvasCursorType] = useCursorType(canvasRef.current, 'default')
   
   const handleMouseDown = (event) => {
     setMouseDown(true)
