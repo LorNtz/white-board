@@ -52,6 +52,10 @@ function WhiteBoard () {
     const { clientX, clientY } = event
     const [x, y] = correctCanvasCord(canvas, clientX, clientY)
   }
+
+  const handleClearCanvas = () => {
+    setElements([])
+  }
   
   useEffect(() => {
     const canvas = canvasRef.current
