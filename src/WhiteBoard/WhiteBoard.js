@@ -46,7 +46,7 @@ function WhiteBoard () {
   const [elementOnDragging, setElementOnDragging] = useState(null)
   
   const canvasRef = useRef(null)
-  const [cursorType, setCursorType] = useCursorType(canvasRef.current, 'default')
+  const [canvasCursorType, setCanvasCursorType] = useCursorType(canvasRef.current, 'default')
   
   const handleMouseDown = (event) => {
     setMouseDown(true)
@@ -80,8 +80,8 @@ function WhiteBoard () {
     const [clientX, clientY] = correctCanvasCord(canvas, event.clientX, event.clientY)
     if (activeToolType === 'selection') {
       elements.some(element => posIsWithinElement(clientX, clientY, element)) 
-        ? setCursorType('move') 
-        : setCursorType('default')
+        ? setCanvasCursorType('move') 
+        : setCanvasCursorType('default')
     }
     
     if (!mouseDown) return
