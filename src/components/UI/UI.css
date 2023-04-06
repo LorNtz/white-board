@@ -1,0 +1,20 @@
+.UI__wrapper {
+  @apply pointer-events-none absolute w-full h-full;
+}
+
+.UI__top-layout {
+  @apply p-4 w-full grid gap-4;
+  grid-template-columns: minmax(4rem, 1fr) minmax(36rem, 1fr) minmax(4rem, 1fr);
+}
+
+.top__left-section {
+  @apply flex justify-start h-12;
+}
+
+.top__middle-section {
+  @apply flex justify-center h-12;
+}
+
+.top__right-section {
+  @apply flex justify-end h-12;
+}

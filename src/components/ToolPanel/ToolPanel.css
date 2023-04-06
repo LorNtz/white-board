@@ -1,0 +1,25 @@
+.tool-panel {
+  @apply h-12 px-2 py-1 bg-white border border-slate-50 drop-shadow-lg rounded-lg;
+  @apply flex gap-1;
+  @apply pointer-events-auto;
+}
+
+.tool-button__label {
+  @apply select-none;
+}
+
+.tool-button__radio {
+  @apply absolute opacity-0 pointer-events-none;
+}
+
+.tool-button__icon {
+  @apply w-10 h-10;
+  @apply rounded-lg bg-white text-[1.5rem] leading-[1.5rem] text-slate-600;
+  @apply flex justify-center items-center;
+  @apply hover:cursor-pointer hover:text-blue-500 hover:bg-gray-100;
+  @apply transition-all;
+}
+
+.tool-button__radio:checked + .tool-button__icon {
+  @apply text-blue-500 bg-gray-100;
+}

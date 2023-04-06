@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  useRef,
+  useState,
+  useEffect,
+  useContext,
+  useCallback,
+  createContext,
+  useLayoutEffect,
+} from 'react';
 import rough from 'roughjs/bundled/rough.esm'
 import {
   clamp,
@@ -16,7 +24,13 @@ import {
   useElementContainer,
   useDevicePixelRatio,
 } from '../hooks'
+import {
+  MIN_ZOOM,
+  MAX_ZOOM,
+} from '../constants'
 import './WhiteBoard.css'
+import { StageStateContext } from './context.js'
+import UI from '../components/UI';
 
 const generator = rough.generator()
 
@@ -67,7 +81,7 @@ function WhiteBoard ({ width, height }) {
   const elements = [ ...elementMap.values() ]
   
   const [currentAction, setCurrentAction] = useState('none')
-  const [activeToolType, setActiveToolType] = useState('rectangle')
+  const [activeToolType, setActiveToolType] = useState('selection')
   const [elementOnDragging, setElementOnDragging] = useState(null)
   const [elementOnDrawing, setElementOnDrawing] = useState(null)
 
@@ -228,10 +242,6 @@ function WhiteBoard ({ width, height }) {
   const adjustZoom = ({
     mode, increment, multiplier
   }) => {
-    // TODO: extract these constants to somewhere else
-    // may be a constants.js file
-    const MAX_ZOOM = 16
-    const MIN_ZOOM = 0.1
     const normalizeZoomFactor = (factor) => clamp(factor, MIN_ZOOM, MAX_ZOOM)
     
     let newZoom = cameraZoom
@@ -304,20 +314,25 @@ function WhiteBoard ({ width, height }) {
   }, [elementMap, cameraOffset, cameraZoom, zoomOrigin, devicePixelRatio])
   
   return (
-    <canvas
-      id="canvas"
-      ref={canvasRef}
-      width={width}
-      height={height}
-      onMouseDown={handleMouseDown}
-      onMouseUp={handleMouseUp}
-      onMouseMove={handleMouseMove}
-      onMouseOut={handleMouseOut}
-      onWheel={handleWheel}
-      onContextMenu={handleContextMenu}
-    >
-      This is fallback content
-    </canvas>
+    <StageStateContext.Provider value={{
+      activeToolType, setActiveToolType
+    }}>
+      <UI></UI>
+      <canvas
+        id="canvas"
+        ref={canvasRef}
+        width={width}
+        height={height}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onMouseMove={handleMouseMove}
+        onMouseOut={handleMouseOut}
+        onWheel={handleWheel}
+        onContextMenu={handleContextMenu}
+      >
+        This is fallback content
+      </canvas>
+    </StageStateContext.Provider>
   );
 }
 
