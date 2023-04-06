@@ -1,5 +1,6 @@
-import { useCallback, useLayoutEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import rough from 'roughjs/bundled/rough.esm'
+import { fixResolution } from "../utils";
 import './WhiteBoard.css'
 
 const generator = rough.generator()
@@ -16,6 +17,7 @@ const random = (a, b) => {
 function WhiteBoard () {
   const [elements, setElements] = useState([])
   const [draging, setDraging] = useState(false)
+  const canvasRef = useRef(null)
   
   const handleMouseDown = (event) => {
     setDraging(true)
@@ -43,21 +45,27 @@ function WhiteBoard () {
     setDraging(false)
   }
   
+  useEffect(() => {
+    const canvas = canvasRef.current
+    fixResolution(canvas)
+  }, [])
+  
   useLayoutEffect(() => {
-    const canvas = document.getElementById('canvas')
-    const context = canvas.getContext('2d')
-    const roughCanvas = rough.canvas(canvas)
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    const rc = rough.canvas(canvas)
 
-    context.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
     
     elements.forEach(({ roughElement }) => {
-      roughCanvas.draw(roughElement)
+      rc.draw(roughElement)
     })
   }, [elements])
   
   return (
     <canvas
       id="canvas"
+      ref={canvasRef}
       width={window.innerWidth}
       height={window.innerHeight}
       onMouseDown={handleMouseDown}
