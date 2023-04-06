@@ -90,6 +90,8 @@ function WhiteBoard ({ width, height }) {
       panningStartPos.y = y / cameraZoom - cameraOffset.y
       return
     }
+
+    if (!mouseState.left) return
     
     let [correctedX, correctedY] = correctCanvasCoord(canvas, x, y, {
       translateX: cameraOffset.x,
@@ -204,6 +206,15 @@ function WhiteBoard ({ width, height }) {
     setElementOnDrawing(null)
   }
 
+  const handleMouseOut = () => {
+    mouseState.middle = mouseState.left = mouseState.right = false
+    setCurrentAction('none')
+  }
+
+  const handleContextMenu = (event) => {
+    event.preventDefault()
+  }
+
   const handleWheel = (event) => {
     if (currentAction === 'panning') return
 
@@ -260,7 +271,9 @@ function WhiteBoard ({ width, height }) {
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onMouseMove={handleMouseMove}
+      onMouseOut={handleMouseOut}
       onWheel={handleWheel}
+      onContextMenu={handleContextMenu}
     >
       This is fallback content
     </canvas>
