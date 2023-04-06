@@ -1,31 +1,45 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import rough from 'roughjs/bundled/rough.esm'
-import { fixResolution, correctCanvasCord } from "../utils";
+import {
+  fixResolution,
+  correctCanvasCord,
+  getElementAtPosition,
+} from "../utils";
 import './WhiteBoard.css'
 
 const generator = rough.generator()
 
-const createWrappedElement = (x1, y1, x2, y2, elementType) => {
+const createWrappedElement = (id, x1, y1, x2, y2, elementType) => {
   let roughElement
   switch (elementType) {
     case 'line':
       roughElement = generator.line(x1, y1, x2, y2)
-      break;
+      break
 
     case 'rectangle':
       roughElement = generator.rectangle(x1, y1, x2 - x1, y2 - y1)
+      break
 
     default:
-      break;
+      throw new Error(`creation of element of ${elementType} type is not implemented yet`)
   }
-  return { x1, y1, x2, y2, roughElement }
+  return {
+    id,
+    x1,
+    y1,
+    x2,
+    y2,
+    type: elementType,
+    roughElement
+  }
 }
 
 function WhiteBoard () {
   const [elements, setElements] = useState([])
   const [mouseDown, setMouseDown] = useState(false)
   const [currentAction, setCurrentAction] = useState('none')
-  const [activeToolType, setActiveToolType] = useState('rectangle')
+  const [activeToolType, setActiveToolType] = useState('line')
+  const [elementOnDragging, setElementOnDragging] = useState(null)
   
   const canvasRef = useRef(null)
   
@@ -33,34 +47,75 @@ function WhiteBoard () {
     setMouseDown(true)
     
     const canvas = canvasRef.current
-    const { clientX, clientY } = event
-    const [x, y] = correctCanvasCord(canvas, clientX, clientY)
-    const element = createWrappedElement(x, y, x, y, activeToolType)
-    setElements(prev => [...prev, element])
+    const [x, y] = correctCanvasCord(canvas, event.clientX, event.clientY)
+    
+    if (activeToolType === 'selection') {
+      const element = getElementAtPosition(x, y, elements)
+      if (element) {
+        setCurrentAction('moving')
+        setElementOnDragging({ ...element, offsetX: x - element.x1, offsetY: y - element.y1 })
+      }
+    } else {
+      setCurrentAction('drawing')
+      const id = elements.length
+      const element = createWrappedElement(id, x, y, x, y, activeToolType)
+      setElements(prev => [...prev, element])
+    }
   }
 
+  const updateElement = ({ id, x1, y1, x2, y2, type }) => {
+    const updatedElement = createWrappedElement(id, x1, y1, x2, y2, type)
+    const elementsCopy = [...elements]
+    elementsCopy[id] = updatedElement
+    setElements(elementsCopy)
+  }
+  
   const handleMouseMove = (event) => {
     if (!mouseDown) return
 
     const canvas = canvasRef.current
-    const index = elements.length - 1
-    const manipulatingElement = elements[index]
-    const { x1, y1 } = manipulatingElement
-    const { clientX, clientY } = event
-    const [ x2, y2 ] = correctCanvasCord(canvas, clientX, clientY)
+    const [clientX, clientY] = correctCanvasCord(canvas, event.clientX, event.clientY)
     
-    const updatedElement = createWrappedElement(x1, y1, x2, y2, activeToolType)
-    const elementsCopy = [...elements]
-    elementsCopy[index] = updatedElement
-    setElements(elementsCopy)
+    if (currentAction === 'drawing') {
+      const index = elements.length - 1
+      const drawingElement = elements[index]
+      const { x1, y1 } = drawingElement
+      const [ x2, y2 ] = [clientX, clientY]
+      
+      updateElement({
+        id: index,
+        x1,
+        y1,
+        x2,
+        y2,
+        type: activeToolType,
+      })
+      
+    } else if (currentAction === 'moving') {
+      const { id, x1, x2, y1, y2, offsetX, offsetY, type } = elementOnDragging
+      const width = x2 - x1
+      const height = y2 - y1
+      const nextX = clientX - offsetX
+      const nextY = clientY - offsetY
+      
+      updateElement({
+        id,
+        x1: nextX,
+        y1: nextY,
+        x2: nextX + width,
+        y2: nextY + height,
+        type
+      })
+    }
   }
 
   const handleMouseUp = (event) => {
     setMouseDown(false)
+    setCurrentAction('none')
+    setElementOnDragging(null)
     
     const canvas = canvasRef.current
-    const { clientX, clientY } = event
-    const [x, y] = correctCanvasCord(canvas, clientX, clientY)
+    const [x, y] = correctCanvasCord(canvas, event.clientX, event.clientY)
   }
 
   const handleClearCanvas = () => {
