@@ -155,7 +155,7 @@ function WhiteBoard ({ width, height }) {
         ? setCanvasCursorType('move') 
         : setCanvasCursorType('default')
     } else {
-      setCanvasCursorType('default')
+      setCanvasCursorType('crosshair')
     }
     
     if (currentAction === 'panning') {
