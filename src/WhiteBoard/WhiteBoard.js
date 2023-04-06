@@ -24,6 +24,8 @@ const createWrappedElement = (x1, y1, x2, y2, elementType) => {
 function WhiteBoard () {
   const [elements, setElements] = useState([])
   const [mouseDown, setMouseDown] = useState(false)
+  const [currentAction, setCurrentAction] = useState('none')
+  const [activeToolType, setActiveToolType] = useState('rectangle')
   
   const canvasRef = useRef(null)
   
