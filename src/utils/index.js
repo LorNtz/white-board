@@ -131,8 +131,9 @@ export function posIsWithinElement (x, y, element) {
       const [a, b] = [(x2 - x1) / 2, (y2 - y1) / 2]
       const p = Math.pow((x - centerX), 2) / Math.pow(a, 2) 
                 + Math.pow((y - centerY), 2) / Math.pow(b, 2)
-      return p <= 1
-    }
+      const epsilon = 0.2
+      return p <= 1 + epsilon
+    },
   }
   
   const isWithin = checkers[type]()
