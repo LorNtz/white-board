@@ -9,37 +9,48 @@ import {
   Picture,
 } from '@icon-park/react'
 
+export const TOOL_TYPE = {
+  SELECTION: 'selection',
+  PAN: 'pan',
+  RECTANGLE: 'rectangle',
+  LINE: 'line',
+  DIAMOND: 'diamond',
+  ELLIPSE: 'ellipse',
+  TEXT: 'text',
+  IMAGE: 'image',
+}
+
 export const TOOLS = [
   {
     icon: <MoveOne />,
-    value: 'selection',
+    value: TOOL_TYPE.SELECTION,
   },
   {
     icon: <Palm />,
-    value: 'pan',
+    value: TOOL_TYPE.PAN,
   },
   {
     icon: <Square />,
-    value: 'rectangle',
+    value: TOOL_TYPE.RECTANGLE,
   },
   {
     icon: <Line />,
-    value: 'line',
+    value: TOOL_TYPE.LINE,
   },
   {
     icon: <Diamond />,
-    value: 'diamond',
+    value: TOOL_TYPE.DIAMOND,
   },
   {
     icon: <Round />,
-    value: 'circle',
+    value: TOOL_TYPE.ELLIPSE,
   },
   {
     icon: <Text />,
-    value: 'text',
+    value: TOOL_TYPE.TEXT,
   },
   {
     icon: <Picture />,
-    value: 'image',
+    value: TOOL_TYPE.IMAGE,
   },
 ]

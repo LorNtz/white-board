@@ -27,6 +27,7 @@ import {
 import {
   MIN_ZOOM,
   MAX_ZOOM,
+  TOOL_TYPE,
 } from '../constants'
 import './WhiteBoard.css'
 import { StageStateContext } from './context.js'
@@ -41,11 +42,11 @@ const createWrappedElement = ({ zIndex, id, x1, y1, x2, y2, elementType, seed })
     seed,
   }
   switch (elementType) {
-    case 'line':
+    case TOOL_TYPE.LINE:
       roughElement = generator.line(x1, y1, x2, y2, opts)
       break
 
-    case 'rectangle':
+    case TOOL_TYPE.RECTANGLE:
       roughElement = generator.rectangle(x1, y1, x2 - x1, y2 - y1, opts)
       break
 
@@ -81,7 +82,7 @@ function WhiteBoard ({ width, height }) {
   const elements = [ ...elementMap.values() ]
   
   const [currentAction, setCurrentAction] = useState('none')
-  const [activeToolType, setActiveToolType] = useState('selection')
+  const [activeToolType, setActiveToolType] = useState(TOOL_TYPE.SELECTION)
   const [elementOnDragging, setElementOnDragging] = useState(null)
   const [elementOnDrawing, setElementOnDrawing] = useState(null)
 
@@ -101,7 +102,7 @@ function WhiteBoard ({ width, height }) {
     const canvas = canvasRef.current
     let { x, y } = getPositionFromMouseOrTouchEvent(event)
 
-    if (activeToolType === 'pan' || mouseState.middle) {
+    if (activeToolType === TOOL_TYPE.PAN || mouseState.middle) {
       setCurrentAction('panning')
       panningStartPos.x = x / cameraZoom - cameraOffset.x
       panningStartPos.y = y / cameraZoom - cameraOffset.y
@@ -119,13 +120,20 @@ function WhiteBoard ({ width, height }) {
       zoom: cameraZoom,
       origin: zoomOrigin
     })
-    if (activeToolType === 'selection') {
+    if (activeToolType === TOOL_TYPE.SELECTION) {
       const element = getElementAtPosition(canvasX, canvasY, elements)
       if (element) {
         setCurrentAction('moving')
         setElementOnDragging({ ...element, offsetX: canvasX - element.x1, offsetY: canvasY - element.y1 })
       }
-    } else {
+    } else if (
+      [
+        TOOL_TYPE.LINE,
+        TOOL_TYPE.RECTANGLE,
+        TOOL_TYPE.DIAMOND,
+        TOOL_TYPE.ELLIPSE,
+      ].includes(activeToolType)
+    ){
       setCurrentAction('drawing')
       const zIndex = elements.length
       const element = createWrappedElement({
@@ -172,9 +180,9 @@ function WhiteBoard ({ width, height }) {
       origin: zoomOrigin
     })
     
-    if (activeToolType === 'pan') {
+    if (activeToolType === TOOL_TYPE.PAN) {
       setCanvasCursorType('grab')
-    } else if (activeToolType === 'selection') {
+    } else if (activeToolType === TOOL_TYPE.SELECTION) {
       elements.some(element => posIsWithinElement(canvasX, canvasY, element)) 
         ? setCanvasCursorType('move') 
         : setCanvasCursorType('default')
