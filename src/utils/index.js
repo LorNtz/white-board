@@ -97,10 +97,10 @@ export function getElementAtPosition (x, y, elements) {
 
 /**
  * check if a point is within an element
- * @param {any} x [TODO:parameter]
- * @param {any} y [TODO:parameter]
- * @param {any} element [TODO:parameter]
- * @returns {[TODO:return]} [TODO:description]
+ * @param {Number} x x coordinate of the point to be checked
+ * @param {Number} y y coordinate of the point to be checked
+ * @param {WrappedElement} element element to perform the hit test
+ * @returns {Boolean} result of hit test, true if the given point is within the element
  */
 export function posIsWithinElement (x, y, element) {
   const { x1, y1, x2, y2, type } = element
