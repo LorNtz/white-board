@@ -9,13 +9,14 @@ import {
   getSeedFromRoughElement,
 } from "../utils";
 import {
-  useCursorType
+  useCursorType,
+  useElementContainer,
 } from '../hooks'
 import './WhiteBoard.css'
 
 const generator = rough.generator()
 
-const createWrappedElement = ({ id, x1, y1, x2, y2, elementType, seed }) => {
+const createWrappedElement = ({ zIndex, id, x1, y1, x2, y2, elementType, seed }) => {
   let roughElement
   seed = seed || rough.newSeed()
   let opts = {
@@ -33,10 +34,10 @@ const createWrappedElement = ({ id, x1, y1, x2, y2, elementType, seed }) => {
     default:
       throw new Error(`creation of element of ${elementType} type is not implemented yet`)
   }
-  const uuid = uuid24bit()
+  id = id || uuid24bit()
   return {
+    zIndex,
     id,
-    uuid,
     x1,
     y1,
     x2,
@@ -47,11 +48,15 @@ const createWrappedElement = ({ id, x1, y1, x2, y2, elementType, seed }) => {
 }
 
 function WhiteBoard () {
-  const [elements, setElements] = useState([])
+  
+  const [elementMap, setElement, setElementMap] = useElementContainer()
+  const elements = [ ...elementMap.values() ]
+  
   const [mouseDown, setMouseDown] = useState(false)
   const [currentAction, setCurrentAction] = useState('none')
   const [activeToolType, setActiveToolType] = useState('line')
   const [elementOnDragging, setElementOnDragging] = useState(null)
+  const [elementOnDrawing, setElementOnDrawing] = useState(null)
   
   const canvasRef = useRef(null)
   const [, setCanvasCursorType] = useCursorType(canvasRef.current, 'default')
@@ -70,21 +75,22 @@ function WhiteBoard () {
       }
     } else {
       setCurrentAction('drawing')
-      const id = elements.length
+      const zIndex = elements.length
       const element = createWrappedElement({
-        id,
+        zIndex,
         x1: x,
         y1: y,
         x2: x,
         y2: y,
         elementType: activeToolType,
       })
-      setElements(prev => [...prev, element])
+      setElement(element.id, element)
+      setElementOnDrawing(element)
     }
   }
 
   const updateElement = (id, { x1, y1, x2, y2, type }) => {
-    const element = elements[id]
+    const element = elementMap.get(id)
     const seed = getSeedFromRoughElement(element.roughElement)
     const updatedElement = createWrappedElement({
       id,
@@ -95,9 +101,7 @@ function WhiteBoard () {
       elementType: type,
       seed,
     })
-    const elementsCopy = [...elements]
-    elementsCopy[id] = updatedElement
-    setElements(elementsCopy)
+    setElement(id, updatedElement)
   }
   
   const handleMouseMove = (event) => {
@@ -112,12 +116,10 @@ function WhiteBoard () {
     if (!mouseDown) return
     
     if (currentAction === 'drawing') {
-      const index = elements.length - 1
-      const drawingElement = elements[index]
-      const { x1, y1 } = drawingElement
+      const { id, x1, y1 } = elementOnDrawing
       const [ x2, y2 ] = [clientX, clientY]
       
-      updateElement(index, {
+      updateElement(id, {
         x1,
         y1,
         x2,
@@ -146,13 +148,14 @@ function WhiteBoard () {
     setMouseDown(false)
     setCurrentAction('none')
     setElementOnDragging(null)
+    setElementOnDrawing(null)
     
     const canvas = canvasRef.current
     const [x, y] = correctCanvasCord(canvas, event.clientX, event.clientY)
   }
 
   const handleClearCanvas = () => {
-    setElements([])
+    setElementMap(new Map([]))
   }
   
   useEffect(() => {
@@ -170,7 +173,7 @@ function WhiteBoard () {
     elements.forEach(({ roughElement }) => {
       rc.draw(roughElement)
     })
-  }, [elements])
+  }, [elementMap])
   
   return (
     <canvas
