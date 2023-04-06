@@ -11,3 +11,15 @@ export const useCursorType = (element, initialType) => {
   }, [element, cursor])
   return [cursor, setCursor]
 }
+
+export const useElementContainer = () => {
+  const [elementMap, setElementMap] = useState(() => new Map())
+
+  const setElement = (id, newElement) => {
+    elementMap.set(id, newElement)
+    const updatedMap = new Map(elementMap)
+    setElementMap(updatedMap)
+  }
+
+  return [elementMap, setElement, setElementMap]
+}
