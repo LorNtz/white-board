@@ -1,7 +1,14 @@
 import {
+  useRef,
   useState,
   useEffect,
 } from 'react'
+import {
+  getButtonNameFromMouseEvent,
+} from '../utils'
+import {
+  useLatest
+} from 'react-use'
 
 export const useCursorType = (element, initialType) => {
   const [cursor, setCursor] = useState(initialType)
@@ -44,4 +51,45 @@ export const useDevicePixelRatio = () => {
   }, [])
 
   return devicePixelRatio
+}
+
+export const useMouseState = (ref) => {
+  const buttonStateRef = useRef({
+    left: false,
+    middle: false,
+    right: false
+  })
+  const getMouseState = () => buttonStateRef.current
+
+  useEffect(() => {
+    function handleMouseDown (event) {
+      event.preventDefault()
+      
+      const buttonName = getButtonNameFromMouseEvent(event)
+      buttonStateRef.current[buttonName] = true
+    }
+    
+    function handleMouseUp (event) {
+      event.preventDefault()
+      
+      const buttonName = getButtonNameFromMouseEvent(event)
+      buttonStateRef.current[buttonName] = false
+    }
+
+    let target
+    if (ref && ref.current && ref.current.addEventListener) {
+      target = ref.current
+    } else {
+      target = document
+    }
+    target.addEventListener('mousedown', handleMouseDown)
+    target.addEventListener('mouseup', handleMouseUp)
+
+    return () => {
+      target.removeEventListener('mousedown', handleMouseDown)
+      target.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [ref])
+
+  return getMouseState
 }
