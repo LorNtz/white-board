@@ -23,11 +23,12 @@ const createWrappedElement = (x1, y1, x2, y2, elementType) => {
 
 function WhiteBoard () {
   const [elements, setElements] = useState([])
-  const [draging, setDraging] = useState(false)
+  const [mouseDown, setMouseDown] = useState(false)
+  
   const canvasRef = useRef(null)
   
   const handleMouseDown = (event) => {
-    setDraging(true)
+    setMouseDown(true)
     
     const canvas = canvasRef.current
     const { clientX, clientY } = event
@@ -37,7 +38,7 @@ function WhiteBoard () {
   }
 
   const handleMouseMove = (event) => {
-    if (!draging) return
+    if (!mouseDown) return
 
     const canvas = canvasRef.current
     const index = elements.length - 1
@@ -53,7 +54,7 @@ function WhiteBoard () {
   }
 
   const handleMouseUp = (event) => {
-    setDraging(false)
+    setMouseDown(false)
     
     const canvas = canvasRef.current
     const { clientX, clientY } = event
