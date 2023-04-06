@@ -1,6 +1,26 @@
-# Getting Started with Create React App
+# Get Started with Development
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+
+## Folder Structure
+
+```
+public/ -- Folder for static resources that has nothing to do with compilation (i.e. favicons)
+src/ -- source code goes here
+|-- assets/ -- any static resources used by source code should be put here (i.e. images)
+|-- components/ -- folder for public components
+  |-- ExampleComponent/
+    |-- index.js -- entry point for exporting this component so that 
+                    you can use 'components/ExampleComponent' as import path, 
+                    meanwhile you won't see the annoying verbose "ExampleComponent/index.js" 
+                    in your editor's tab bar when you're working on this component
+    |-- ExampleComponent.js -- source code of this component
+    |-- ExampleComponent.css -- styles of this component (remember to import it in ExampleComponent.js!)
+    |-- ExampleComponent.test.js -- unit test for this component, will run when 'npm run test' runs
+|-- constants/ -- folder for enum and constants
+|-- utils/ -- folder for public utils, i.e. functions
+|-- WhiteBoard/ -- the only page currently in this project and could be moved to elsewhere later
+```
 
 ## Available Scripts
 
