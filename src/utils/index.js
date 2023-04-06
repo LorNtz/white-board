@@ -99,3 +99,7 @@ export function posIsWithinElement (x, y, element) {
 export function distance2D (a, b) {
   return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2))
 }
+
+export function getSeedFromRoughElement (roughElement) {
+  return roughElement.options.seed
+}

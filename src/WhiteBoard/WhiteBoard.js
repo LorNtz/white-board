@@ -3,8 +3,9 @@ import rough from 'roughjs/bundled/rough.esm'
 import {
   fixResolution,
   correctCanvasCord,
-  getElementAtPosition,
   posIsWithinElement,
+  getElementAtPosition,
+  getSeedFromRoughElement,
 } from "../utils";
 import {
   useCursorType
@@ -13,15 +14,19 @@ import './WhiteBoard.css'
 
 const generator = rough.generator()
 
-const createWrappedElement = (id, x1, y1, x2, y2, elementType) => {
+const createWrappedElement = ({ id, x1, y1, x2, y2, elementType, seed }) => {
   let roughElement
+  seed = seed || rough.newSeed()
+  let opts = {
+    seed,
+  }
   switch (elementType) {
     case 'line':
-      roughElement = generator.line(x1, y1, x2, y2)
+      roughElement = generator.line(x1, y1, x2, y2, opts)
       break
 
     case 'rectangle':
-      roughElement = generator.rectangle(x1, y1, x2 - x1, y2 - y1)
+      roughElement = generator.rectangle(x1, y1, x2 - x1, y2 - y1, opts)
       break
 
     default:
@@ -63,13 +68,30 @@ function WhiteBoard () {
     } else {
       setCurrentAction('drawing')
       const id = elements.length
-      const element = createWrappedElement(id, x, y, x, y, activeToolType)
+      const element = createWrappedElement({
+        id,
+        x1: x,
+        y1: y,
+        x2: x,
+        y2: y,
+        elementType: activeToolType,
+      })
       setElements(prev => [...prev, element])
     }
   }
 
-  const updateElement = ({ id, x1, y1, x2, y2, type }) => {
-    const updatedElement = createWrappedElement(id, x1, y1, x2, y2, type)
+  const updateElement = (id, { x1, y1, x2, y2, type }) => {
+    const element = elements[id]
+    const seed = getSeedFromRoughElement(element.roughElement)
+    const updatedElement = createWrappedElement({
+      id,
+      x1,
+      y1,
+      x2,
+      y2,
+      elementType: type,
+      seed,
+    })
     const elementsCopy = [...elements]
     elementsCopy[id] = updatedElement
     setElements(elementsCopy)
@@ -92,8 +114,7 @@ function WhiteBoard () {
       const { x1, y1 } = drawingElement
       const [ x2, y2 ] = [clientX, clientY]
       
-      updateElement({
-        id: index,
+      updateElement(index, {
         x1,
         y1,
         x2,
@@ -108,8 +129,7 @@ function WhiteBoard () {
       const nextX = clientX - offsetX
       const nextY = clientY - offsetY
       
-      updateElement({
-        id,
+      updateElement(id, {
         x1: nextX,
         y1: nextY,
         x2: nextX + width,
