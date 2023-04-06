@@ -7,10 +7,12 @@ import {
   posIsWithinElement,
   getElementAtPosition,
   getSeedFromRoughElement,
+  getPositionFromMouseOrTouchEvent
 } from "../utils";
 import {
   useCursorType,
   useElementContainer,
+  useDevicePixelRatio,
 } from '../hooks'
 import './WhiteBoard.css'
 
@@ -47,7 +49,9 @@ const createWrappedElement = ({ zIndex, id, x1, y1, x2, y2, elementType, seed })
   }
 }
 
-function WhiteBoard () {
+let panningStartPos = { x: 0, y: 0 }
+
+function WhiteBoard ({width, height}) {
   
   const [elementMap, setElement, setElementMap] = useElementContainer()
   const elements = [ ...elementMap.values() ]
@@ -57,31 +61,44 @@ function WhiteBoard () {
   const [activeToolType, setActiveToolType] = useState('line')
   const [elementOnDragging, setElementOnDragging] = useState(null)
   const [elementOnDrawing, setElementOnDrawing] = useState(null)
+
+  const devicePixelRatio = useDevicePixelRatio()
+  const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 })
   
   const canvasRef = useRef(null)
   const [, setCanvasCursorType] = useCursorType(canvasRef.current, 'default')
   
   const handleMouseDown = (event) => {
     setMouseDown(true)
-    
     const canvas = canvasRef.current
-    const [x, y] = correctCanvasCord(canvas, event.clientX, event.clientY)
+    let { x, y } = getPositionFromMouseOrTouchEvent(event)
+
+    if (activeToolType === 'pan') {
+      setCurrentAction('panning')
+      panningStartPos.x = x - cameraOffset.x
+      panningStartPos.y = y - cameraOffset.y
+      return
+    }
     
+    let [correctedX, correctedY] = correctCanvasCord(canvas, x, y, {
+      translateX: cameraOffset.x,
+      translateY: cameraOffset.y,
+    })
     if (activeToolType === 'selection') {
-      const element = getElementAtPosition(x, y, elements)
+      const element = getElementAtPosition(correctedX, correctedY, elements)
       if (element) {
         setCurrentAction('moving')
-        setElementOnDragging({ ...element, offsetX: x - element.x1, offsetY: y - element.y1 })
+        setElementOnDragging({ ...element, offsetX: correctedX - element.x1, offsetY: correctedY - element.y1 })
       }
     } else {
       setCurrentAction('drawing')
       const zIndex = elements.length
       const element = createWrappedElement({
         zIndex,
-        x1: x,
-        y1: y,
-        x2: x,
-        y2: y,
+        x1: correctedX,
+        y1: correctedY,
+        x2: correctedX,
+        y2: correctedY,
         elementType: activeToolType,
       })
       setElement(element.id, element)
@@ -106,18 +123,38 @@ function WhiteBoard () {
   
   const handleMouseMove = (event) => {
     const canvas = canvasRef.current
-    const [clientX, clientY] = correctCanvasCord(canvas, event.clientX, event.clientY)
-    if (activeToolType === 'selection') {
-      elements.some(element => posIsWithinElement(clientX, clientY, element)) 
+    let { x, y } = getPositionFromMouseOrTouchEvent(event)
+    let [correctedX, correctedY] = correctCanvasCord(canvas, x, y, {
+      translateX: cameraOffset.x,
+      translateY: cameraOffset.y,
+    })
+    
+    if (activeToolType === 'pan') {
+      setCanvasCursorType('grab')
+    } else if (activeToolType === 'selection') {
+      elements.some(element => posIsWithinElement(correctedX, correctedY, element)) 
         ? setCanvasCursorType('move') 
         : setCanvasCursorType('default')
+    } else {
+      setCanvasCursorType('default')
     }
     
     if (!mouseDown) return
+
+    if (currentAction === 'panning') {
+      setCanvasCursorType('grabbing')
+      
+      setCameraOffset({
+        x: x - panningStartPos.x,
+        y: y - panningStartPos.y
+      })
+      
+      return
+    }
     
     if (currentAction === 'drawing') {
       const { id, x1, y1 } = elementOnDrawing
-      const [ x2, y2 ] = [clientX, clientY]
+      const [ x2, y2 ] = [correctedX, correctedY]
       
       updateElement(id, {
         x1,
@@ -131,8 +168,8 @@ function WhiteBoard () {
       const { id, x1, x2, y1, y2, offsetX, offsetY, type } = elementOnDragging
       const width = x2 - x1
       const height = y2 - y1
-      const nextX = clientX - offsetX
-      const nextY = clientY - offsetY
+      const nextX = correctedX - offsetX
+      const nextY = correctedY - offsetY
       
       updateElement(id, {
         x1: nextX,
@@ -149,9 +186,6 @@ function WhiteBoard () {
     setCurrentAction('none')
     setElementOnDragging(null)
     setElementOnDrawing(null)
-    
-    const canvas = canvasRef.current
-    const [x, y] = correctCanvasCord(canvas, event.clientX, event.clientY)
   }
 
   const handleClearCanvas = () => {
@@ -168,19 +202,22 @@ function WhiteBoard () {
     const ctx = canvas.getContext('2d')
     const rc = rough.canvas(canvas)
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0)
+    ctx.clearRect(0, 0, width, height)
+    
+    ctx.translate(cameraOffset.x, cameraOffset.y)
     
     elements.forEach(({ roughElement }) => {
       rc.draw(roughElement)
     })
-  }, [elementMap])
+  }, [elementMap, cameraOffset, devicePixelRatio])
   
   return (
     <canvas
       id="canvas"
       ref={canvasRef}
-      width={window.innerWidth}
-      height={window.innerHeight}
+      width={width}
+      height={height}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
       onMouseMove={handleMouseMove}

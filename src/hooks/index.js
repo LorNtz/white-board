@@ -23,3 +23,25 @@ export const useElementContainer = () => {
 
   return [elementMap, setElement, setElementMap]
 }
+
+export const useDevicePixelRatio = () => {
+  const [devicePixelRatio, setDevicePixelRatio] = useState(1)
+
+  useEffect(() => {
+    setDevicePixelRatio(window.devicePixelRatio || 1)
+
+    function handleResize () {
+      setDevicePixelRatio(window.devicePixelRatio || 1)
+    }
+
+    window.addEventListener('resize', handleResize)
+    window.addEventListener('orientationchange', handleResize)
+
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      window.removeEventListener('orientationchange', handleResize)
+    }
+  }, [])
+
+  return devicePixelRatio
+}

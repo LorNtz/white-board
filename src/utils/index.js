@@ -6,12 +6,23 @@
  * @param y {number} y clientY
  * @returns {[number, number]} a tuple of corrected coordinates
  */
-export function correctCanvasCord (canvas, x, y) {
+export function correctCanvasCord (canvas, x, y, opt = {}) {
+  const defaultOptions = {
+    translateX: 0,
+    translateY: 0,
+    zoom: 1,
+  }
+  const {
+    translateX,
+    translateY,
+    zoom
+  } = Object.assign({}, defaultOptions, opt)
+
   const boundingRect = canvas.getBoundingClientRect()
   const { left, top } = boundingRect
   return [
-    x - left, // corrected x coordinate
-    y - top   // corrected y coordinate
+    (x - left - translateX) / zoom, // corrected x coordinate
+    (y - top - translateY) / zoom   // corrected y coordinate
   ]
 }
 

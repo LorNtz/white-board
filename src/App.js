@@ -3,7 +3,7 @@ import WhiteBoard from "./WhiteBoard";
 
 function App() {
   return (
-    <WhiteBoard />
+    <WhiteBoard width={window.innerWidth} height={window.innerHeight} />
   );
 }
 
