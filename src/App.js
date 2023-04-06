@@ -1,3 +1,5 @@
+import '@icon-park/react/styles/index.css'
+
 import ReactWelcome from './react-welcome'
 import WhiteBoard from "./WhiteBoard";
 
