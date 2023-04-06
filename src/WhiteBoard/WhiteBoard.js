@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import rough from 'roughjs/bundled/rough.esm'
-import { fixResolution } from "../utils";
+import { fixResolution, correctCanvasCord } from "../utils";
 import './WhiteBoard.css'
 
 const generator = rough.generator()
@@ -22,20 +22,24 @@ function WhiteBoard () {
   const handleMouseDown = (event) => {
     setDraging(true)
     
+    const canvas = canvasRef.current
     const { clientX, clientY } = event
-
-    const element = createWrappedElement(clientX, clientY, clientX, clientY)
+    const [x, y] = correctCanvasCord(canvas, clientX, clientY)
+    const element = createWrappedElement(x, y, x, y, activeToolType)
     setElements(prev => [...prev, element])
   }
 
   const handleMouseMove = (event) => {
     if (!draging) return
 
-    const { clientX, clientY } = event
+    const canvas = canvasRef.current
     const index = elements.length - 1
-    const { x1, y1 } = elements[index]
-    const updatedElement = createWrappedElement(x1, y1, clientX, clientY)
-
+    const manipulatingElement = elements[index]
+    const { x1, y1 } = manipulatingElement
+    const { clientX, clientY } = event
+    const [ x2, y2 ] = correctCanvasCord(canvas, clientX, clientY)
+    
+    const updatedElement = createWrappedElement(x1, y1, x2, y2, activeToolType)
     const elementsCopy = [...elements]
     elementsCopy[index] = updatedElement
     setElements(elementsCopy)
@@ -43,6 +47,10 @@ function WhiteBoard () {
 
   const handleMouseUp = (event) => {
     setDraging(false)
+    
+    const canvas = canvasRef.current
+    const { clientX, clientY } = event
+    const [x, y] = correctCanvasCord(canvas, clientX, clientY)
   }
   
   useEffect(() => {

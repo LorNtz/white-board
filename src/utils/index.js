@@ -1,3 +1,19 @@
+/**
+ * correct a set of coordinates of a position and 
+ * return coordinates coresponding to the canvas top-left corner
+ * @param canvas {HTMLCanvasElement} canvas the canvas element
+ * @param x {number} x clientX
+ * @param y {number} y clientY
+ * @returns {[number, number]} a tuple of corrected coordinates
+ */
+export function correctCanvasCord (canvas, x, y) {
+  const boundingRect = canvas.getBoundingClientRect()
+  const { left, top } = boundingRect
+  return [
+    x - left, // corrected x coordinate
+    y - top   // corrected y coordinate
+  ]
+}
 export function fixResolution (canvas) {
   const context = canvas.getContext('2d')
   const ratio = window.devicePixelRatio || 1
