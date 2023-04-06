@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import rough from 'roughjs/bundled/rough.esm'
 import {
+  uuid24bit,
   fixResolution,
   correctCanvasCord,
   posIsWithinElement,
@@ -32,8 +33,10 @@ const createWrappedElement = ({ id, x1, y1, x2, y2, elementType, seed }) => {
     default:
       throw new Error(`creation of element of ${elementType} type is not implemented yet`)
   }
+  const uuid = uuid24bit()
   return {
     id,
+    uuid,
     x1,
     y1,
     x2,

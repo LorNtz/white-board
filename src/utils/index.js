@@ -103,3 +103,11 @@ export function distance2D (a, b) {
 export function getSeedFromRoughElement (roughElement) {
   return roughElement.options.seed
 }
+
+export function uuid24bit () {
+  if (window.crypto && window.crypto.getRandomValues) {
+    const array = new Uint8Array(3)
+    window.crypto.getRandomValues(array)
+    return array.join('-')
+  }
+}
