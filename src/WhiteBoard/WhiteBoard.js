@@ -4,7 +4,7 @@ import {
   clamp,
   uuid24bit,
   fixResolution,
-  correctCanvasCord,
+  correctCanvasCoord,
   posIsWithinElement,
   getElementAtPosition,
   getSeedFromRoughElement,
@@ -91,7 +91,7 @@ function WhiteBoard ({ width, height }) {
       return
     }
     
-    let [correctedX, correctedY] = correctCanvasCord(canvas, x, y, {
+    let [correctedX, correctedY] = correctCanvasCoord(canvas, x, y, {
       translateX: cameraOffset.x,
       translateY: cameraOffset.y,
       zoom: cameraZoom,
@@ -138,7 +138,7 @@ function WhiteBoard ({ width, height }) {
   const handleMouseMove = (event) => {
     const canvas = canvasRef.current
     let { x, y } = getPositionFromMouseOrTouchEvent(event)
-    let [correctedX, correctedY] = correctCanvasCord(canvas, x, y, {
+    let [correctedX, correctedY] = correctCanvasCoord(canvas, x, y, {
       translateX: cameraOffset.x,
       translateY: cameraOffset.y,
       zoom: cameraZoom,

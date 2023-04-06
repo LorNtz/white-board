@@ -6,7 +6,7 @@
  * @param y {number} y clientY
  * @returns {[number, number]} a tuple of corrected coordinates
  */
-export function correctCanvasCord (canvas, x, y, opt = {}) {
+export function correctCanvasCoord (canvas, x, y, opt = {}) {
   const defaultOptions = {
     translateX: 0,
     translateY: 0,
