@@ -4,7 +4,11 @@ import {
   fixResolution,
   correctCanvasCord,
   getElementAtPosition,
+  posIsWithinElement,
 } from "../utils";
+import {
+  useCursorType
+} from '../hooks'
 import './WhiteBoard.css'
 
 const generator = rough.generator()
@@ -42,6 +46,7 @@ function WhiteBoard () {
   const [elementOnDragging, setElementOnDragging] = useState(null)
   
   const canvasRef = useRef(null)
+  const [cursorType, setCursorType] = useCursorType(canvasRef.current, 'default')
   
   const handleMouseDown = (event) => {
     setMouseDown(true)
@@ -71,10 +76,15 @@ function WhiteBoard () {
   }
   
   const handleMouseMove = (event) => {
-    if (!mouseDown) return
-
     const canvas = canvasRef.current
     const [clientX, clientY] = correctCanvasCord(canvas, event.clientX, event.clientY)
+    if (activeToolType === 'selection') {
+      elements.some(element => posIsWithinElement(clientX, clientY, element)) 
+        ? setCursorType('move') 
+        : setCursorType('default')
+    }
+    
+    if (!mouseDown) return
     
     if (currentAction === 'drawing') {
       const index = elements.length - 1
