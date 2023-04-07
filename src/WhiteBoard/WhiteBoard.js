@@ -177,18 +177,28 @@ function WhiteBoard ({ width, height }) {
     }
   }
 
-  const updateElement = (id, { x1, y1, x2, y2, type: newType }) => {
+  const updateElement = (id, { x1, y1, x2, y2, }) => {
     const element = elementMap.get(id)
     const seed = getSeedFromRoughElement(element.roughElement)
-    const updatedElement = createWrappedElement(newType || element.type, {
-      id,
-      x1,
-      y1,
-      x2,
-      y2,
-      seed,
-    })
-    setElement(id, updatedElement)
+    switch (element.type) {
+      case ELEMENT_TYPE.LINE:
+      case ELEMENT_TYPE.RECTANGLE:
+      case ELEMENT_TYPE.ELLIPSE:
+      case ELEMENT_TYPE.DIAMOND:
+        const updatedElement = createWrappedElement(element.type, {
+          id,
+          x1,
+          y1,
+          x2,
+          y2,
+          seed,
+        })
+        setElement(id, updatedElement)
+        break
+
+      default:
+        throw new Error(`Cannot update element with type ${element.type}`)
+    }
   }
   
   const handleMouseMove = (event) => {
