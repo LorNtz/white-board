@@ -37,44 +37,60 @@ import UI from '../components/UI';
 
 const generator = rough.generator()
 
-const createWrappedElement = ({ zIndex, id, x1, y1, x2, y2, type, seed }) => {
-  let roughElement
+function createWrappedElement (type, props){
+  const { zIndex, id, x1, y1, x2, y2, text, font, seed } = props
+
+  let wrappedElement = {
+    type,
+    zIndex,
+    x1,
+    y1,
+    x2,
+    y2,
+    id: id || uuid24bit()
+  }
   
-  seed = seed || rough.newSeed()
-  let opts = {
-    seed,
+  let roughOpts = {
+    seed: seed || rough.newSeed(),
   }
   
   switch (type) {
     case ELEMENT_TYPE.LINE:
-      roughElement = generator.line(x1, y1, x2, y2, opts)
+      wrappedElement.roughElement = generator.line(x1, y1, x2, y2, roughOpts)
       break
 
     case ELEMENT_TYPE.RECTANGLE:
-      roughElement = generator.rectangle(x1, y1, x2 - x1, y2 - y1, opts)
+      wrappedElement.roughElement = generator.rectangle(x1, y1, x2 - x1, y2 - y1, roughOpts)
       break
 
     case ELEMENT_TYPE.ELLIPSE:
       const width = x2 - x1
       const height = y2 - y1
       const [x, y] = [x1 + width / 2, y1 + height / 2]
-      roughElement = generator.ellipse(x, y, width, height, opts)
+      wrappedElement.roughElement = generator.ellipse(x, y, width, height, roughOpts)
       break
 
     default:
       throw new Error(`creation of element of ${type} type is not implemented yet`)
   }
   
-  id = id || uuid24bit()
-  return {
-    zIndex,
-    id,
-    x1,
-    y1,
-    x2,
-    y2,
-    type,
-    roughElement
+  return wrappedElement
+}
+
+function drawElement (roughCanvas, context, element) {
+  const { type } = element
+  
+  switch (type) {
+    case ELEMENT_TYPE.LINE:
+    case ELEMENT_TYPE.CURVE:
+    case ELEMENT_TYPE.ELLIPSE:
+    case ELEMENT_TYPE.DIAMOND:
+    case ELEMENT_TYPE.RECTANGLE:
+      roughCanvas.draw(element.roughElement)
+      break
+
+    default:
+      throw new Error(`Drawing for element type ${type} is not implemented yet`)
   }
 }
 
@@ -145,17 +161,16 @@ function WhiteBoard ({ width, height }) {
         TOOL_TYPE.DIAMOND,
         TOOL_TYPE.ELLIPSE,
       ].includes(activeToolType)
-    ){
+    ) {
       setCurrentAction('drawing')
       const zIndex = elements.length
       const elementType = TOOL_ELEMENT_MAP[activeToolType]
-      const element = createWrappedElement({
+      const element = createWrappedElement(elementType, {
         zIndex,
         x1: canvasX,
         y1: canvasY,
         x2: canvasX,
         y2: canvasY,
-        type: elementType,
       })
       setElement(element.id, element)
       setElementOnDrawing(element)
@@ -165,13 +180,12 @@ function WhiteBoard ({ width, height }) {
   const updateElement = (id, { x1, y1, x2, y2, type: newType }) => {
     const element = elementMap.get(id)
     const seed = getSeedFromRoughElement(element.roughElement)
-    const updatedElement = createWrappedElement({
+    const updatedElement = createWrappedElement(newType || element.type, {
       id,
       x1,
       y1,
       x2,
       y2,
-      type: newType || element.type,
       seed,
     })
     setElement(id, updatedElement)
@@ -327,8 +341,8 @@ function WhiteBoard ({ width, height }) {
     // panning
     ctx.translate(cameraOffset.x, cameraOffset.y)
     
-    elements.forEach(({ roughElement }) => {
-      rc.draw(roughElement)
+    elements.forEach((element) => {
+      drawElement(rc, ctx, element)
     })
   }, [elementMap, cameraOffset, cameraZoom, zoomOrigin, devicePixelRatio])
   
