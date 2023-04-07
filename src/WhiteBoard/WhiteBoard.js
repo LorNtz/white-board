@@ -111,8 +111,7 @@ function WhiteBoard ({ width, height }) {
   
   const [currentAction, setCurrentAction] = useState('none')
   const [activeToolType, setActiveToolType] = useState(TOOL_TYPE.SELECTION)
-  const [elementOnDragging, setElementOnDragging] = useState(null)
-  const [elementOnDrawing, setElementOnDrawing] = useState(null)
+  const [manipulatingElement, setManipulatingElement] = useState(null)
 
   const devicePixelRatio = useDevicePixelRatio()
   const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 })
@@ -152,7 +151,7 @@ function WhiteBoard ({ width, height }) {
       const element = getElementAtPosition(canvasX, canvasY, elements)
       if (element) {
         setCurrentAction('moving')
-        setElementOnDragging({ ...element, offsetX: canvasX - element.x1, offsetY: canvasY - element.y1 })
+        setManipulatingElement({ ...element, offsetX: canvasX - element.x1, offsetY: canvasY - element.y1 })
       }
     } else if (
       [
@@ -173,7 +172,7 @@ function WhiteBoard ({ width, height }) {
         y2: canvasY,
       })
       setElement(element.id, element)
-      setElementOnDrawing(element)
+      setManipulatingElement(element)
     }
   }
 
@@ -239,7 +238,7 @@ function WhiteBoard ({ width, height }) {
     }
     
     if (currentAction === 'drawing') {
-      const { id, x1, y1 } = elementOnDrawing
+      const { id, x1, y1 } = manipulatingElement
       const [ x2, y2 ] = [canvasX, canvasY]
       
       updateElement(id, {
@@ -250,7 +249,7 @@ function WhiteBoard ({ width, height }) {
       })
       
     } else if (currentAction === 'moving') {
-      const { id, x1, x2, y1, y2, offsetX, offsetY, type } = elementOnDragging
+      const { id, x1, x2, y1, y2, offsetX, offsetY } = manipulatingElement
       const width = x2 - x1
       const height = y2 - y1
       const nextX = canvasX - offsetX
@@ -269,8 +268,7 @@ function WhiteBoard ({ width, height }) {
     const buttonName = getButtonNameFromMouseEvent(event)
     mouseState[buttonName] = false
     setCurrentAction('none')
-    setElementOnDragging(null)
-    setElementOnDrawing(null)
+    setManipulatingElement(null)
   }
 
   const handleMouseOut = () => {
