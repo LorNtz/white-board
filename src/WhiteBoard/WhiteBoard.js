@@ -30,6 +30,7 @@ import {
   TOOL_TYPE,
   ELEMENT_TYPE,
   TOOL_ELEMENT_MAP,
+  ADJUST_ZOOM_MODE,
 } from '../constants'
 import './WhiteBoard.css'
 import { StageStateContext } from './context.js'
@@ -286,11 +287,11 @@ function WhiteBoard ({ width, height }) {
     const normalizeZoomFactor = (factor) => clamp(factor, MIN_ZOOM, MAX_ZOOM)
     
     let newZoom = cameraZoom
-    if (mode === 'increment') {
+    if (mode === ADJUST_ZOOM_MODE.INCREMENT) {
       newZoom = normalizeZoomFactor(cameraZoom + value)
-    } else if (mode === 'multiplier') {
+    } else if (mode === ADJUST_ZOOM_MODE.MULTIPLY) {
       newZoom = normalizeZoomFactor(cameraZoom * value)
-    } else if (mode === 'set') {
+    } else if (mode === ADJUST_ZOOM_MODE.SET) {
       newZoom = value
     } else {
       throw new Error(`Unsupported zoom mode: ${mode}`)
@@ -322,12 +323,12 @@ function WhiteBoard ({ width, height }) {
       const increment = reversed 
         ? deltaY * scrollSensitivity 
         : -deltaY * scrollSensitivity
-      adjustZoom({ mode: 'increment', value: increment })
+      adjustZoom({ mode: ADJUST_ZOOM_MODE.INCREMENT, value: increment })
     } else {
       const factor = 0.1
       deltaY < 0 
-        ? adjustZoom({ mode: 'multiply', value: 1 + factor }) 
-        : adjustZoom({ mode: 'multiply', value: 1 - factor })
+        ? adjustZoom({ mode: ADJUST_ZOOM_MODE.MULTIPLY, value: 1 + factor }) 
+        : adjustZoom({ mode: ADJUST_ZOOM_MODE.MULTIPLY, value: 1 - factor })
     }
   }
 

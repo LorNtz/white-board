@@ -13,4 +13,8 @@ export const TOOL_ELEMENT_MAP = {
   [TOOL_TYPE.IMAGE]: ELEMENT_TYPE.IMAGE,
 }
 
-export { MIN_ZOOM, MAX_ZOOM } from './zoom.js'
+export {
+  MIN_ZOOM,
+  MAX_ZOOM,
+  ADJUST_ZOOM_MODE,
+} from './zoom.js'

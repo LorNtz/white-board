@@ -6,8 +6,7 @@ import {
   useStageStateContext
 } from '../../WhiteBoard/context.js'
 import {
-  MIN_ZOOM,
-  MAX_ZOOM,
+  ADJUST_ZOOM_MODE
 } from '../../constants'
 import {
   clamp
@@ -28,7 +27,7 @@ function ZoomPanel() {
 
   function handleZoomIn () {
     adjustZoom({
-      mode: 'multiplier',
+      mode: ADJUST_ZOOM_MODE.MULTIPLY,
       value: 1.05,
       center: {
         x: width / 2,
@@ -39,7 +38,7 @@ function ZoomPanel() {
 
   function handleZoomOut () {
     adjustZoom({
-      mode: 'multiplier',
+      mode: ADJUST_ZOOM_MODE.MULTIPLY,
       value: 1 / 1.05,
       center: {
         x: width / 2,
@@ -50,7 +49,7 @@ function ZoomPanel() {
 
   function handleResetZoom () {
     adjustZoom({
-      mode: 'set',
+      mode: ADJUST_ZOOM_MODE.SET,
       value: 1,
       center: {
         x: width / 2,
