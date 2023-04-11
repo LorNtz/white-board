@@ -2,19 +2,28 @@
   @apply pointer-events-none absolute w-full h-full;
 }
 
-.UI__top-layout {
+.UI__header-layout {
   @apply p-4 w-full grid gap-4;
   grid-template-columns: minmax(4rem, 1fr) minmax(36rem, 1fr) minmax(4rem, 1fr);
 }
 
-.top__left-section {
+.header__left-section {
   @apply flex justify-start h-12;
 }
 
-.top__middle-section {
+.header__middle-section {
   @apply flex justify-center h-12;
 }
 
-.top__right-section {
+.header__right-section {
+  @apply flex justify-end h-12;
+}
+
+.UI__footer-layout {
+  @apply absolute bottom-0 px-10 py-8 w-full grid gap-4;
+  grid-template-columns: minmax(4rem, 1fr) minmax(36rem, 1fr) minmax(4rem, 1fr);
+}
+
+.footer__right-section {
   @apply flex justify-end h-12;
 }

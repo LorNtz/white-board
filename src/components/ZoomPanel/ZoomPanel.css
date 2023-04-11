@@ -1,0 +1,28 @@
+.zoom-panel {
+  @apply pointer-events-auto cursor-pointer;
+  @apply drop-shadow-lg;
+  @apply flex;
+}
+
+.zoom-panel__button__icon {
+  @apply w-12 h-12;
+  @apply flex justify-center items-center;
+  @apply hover:bg-blue-500 hover:text-white active:bg-blue-600;
+  @apply bg-white text-[1.5rem] leading-[1.5rem] text-slate-600;
+  @apply transition-all;
+}
+
+.zoom-panel__minus {
+  @apply rounded-l-full;
+}
+
+.zoom-panel__plus {
+  @apply rounded-r-full;
+}
+
+.zoom-panel__scale {
+  @apply w-16 h-12;
+  @apply border border-slate-50;
+  @apply bg-white text-[1.1rem];
+  @apply flex justify-center items-center;
+}

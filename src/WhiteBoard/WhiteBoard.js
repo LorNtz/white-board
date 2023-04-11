@@ -281,23 +281,33 @@ function WhiteBoard ({ width, height }) {
   }
   
   const adjustZoom = ({
-    mode, increment, multiplier
+    mode, value, center
   }) => {
     const normalizeZoomFactor = (factor) => clamp(factor, MIN_ZOOM, MAX_ZOOM)
     
     let newZoom = cameraZoom
     if (mode === 'increment') {
-      newZoom = normalizeZoomFactor(cameraZoom + increment)
+      newZoom = normalizeZoomFactor(cameraZoom + value)
     } else if (mode === 'multiplier') {
-      newZoom = normalizeZoomFactor(cameraZoom * multiplier)
+      newZoom = normalizeZoomFactor(cameraZoom * value)
+    } else if (mode === 'set') {
+      newZoom = value
     } else {
       throw new Error(`Unsupported zoom mode: ${mode}`)
     }
     const scaleBy = newZoom / cameraZoom
-    setZoomOrigin({
-      x: mouseState.x - (mouseState.x - zoomOrigin.x) * scaleBy,
-      y: mouseState.y - (mouseState.y - zoomOrigin.y) * scaleBy
-    })
+    if (center) {
+      setZoomOrigin({
+        x: center.x - (center.x - zoomOrigin.x) * scaleBy,
+        y: center.y - (center.y - zoomOrigin.y) * scaleBy
+      })
+    } else {
+      setZoomOrigin({
+        x: mouseState.x - (mouseState.x - zoomOrigin.x) * scaleBy,
+        y: mouseState.y - (mouseState.y - zoomOrigin.y) * scaleBy
+      })
+    }
+    // TODO: use requestAnimationFrame and time functions to create smooth zoom
     setCameraZoom(newZoom)
   }
 
@@ -312,12 +322,12 @@ function WhiteBoard ({ width, height }) {
       const increment = reversed 
         ? deltaY * scrollSensitivity 
         : -deltaY * scrollSensitivity
-      adjustZoom({ mode: 'increment', increment: increment})
+      adjustZoom({ mode: 'increment', value: increment })
     } else {
       const factor = 0.1
       deltaY < 0 
-        ? adjustZoom({ mode: 'multiply', multiplier: 1 + factor }) 
-        : adjustZoom({ mode: 'multiply', multiplier: 1 - factor })
+        ? adjustZoom({ mode: 'multiply', value: 1 + factor }) 
+        : adjustZoom({ mode: 'multiply', value: 1 - factor })
     }
   }
 
@@ -356,7 +366,7 @@ function WhiteBoard ({ width, height }) {
   
   return (
     <StageStateContext.Provider value={{
-      activeToolType, setActiveToolType
+      width, height, activeToolType, setActiveToolType, cameraZoom, adjustZoom
     }}>
       <UI></UI>
       <canvas
