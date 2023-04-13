@@ -1,7 +1,7 @@
 .tool-panel {
   @apply h-12 px-2 py-1 bg-white border border-slate-50 drop-shadow-lg rounded-lg;
   @apply flex gap-1;
-  @apply pointer-events-auto;
+  @apply pointer-events-auto select-none;
 }
 
 .tool-button__label {

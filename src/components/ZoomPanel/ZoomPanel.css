@@ -1,5 +1,5 @@
 .zoom-panel {
-  @apply pointer-events-auto cursor-pointer;
+  @apply pointer-events-auto select-none cursor-pointer;
   @apply drop-shadow-lg;
   @apply flex;
 }

@@ -134,6 +134,9 @@ export function posIsWithinElement (x, y, element) {
       const epsilon = 0.2
       return p <= 1 + epsilon
     },
+    [ELEMENT_TYPE.TEXT]: () => {
+      return false
+    }
   }
   
   const isWithin = checkers[type]()
