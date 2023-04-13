@@ -27,8 +27,14 @@ export const useElementContainer = () => {
     const updatedMap = new Map(elementMap)
     setElementMap(updatedMap)
   }
+  
+  const deleteElement = (id) => {
+    elementMap.delete(id)
+    const updatedMap = new Map(elementMap)
+    setElementMap(updatedMap)
+  }
 
-  return [elementMap, setElement, setElementMap]
+  return { elementMap, setElement, deleteElement, setElementMap }
 }
 
 export const useDevicePixelRatio = () => {
@@ -92,4 +98,17 @@ export const useMouseState = (ref) => {
   }, [ref])
 
   return getMouseState
+}
+
+export const useFont = (initialSize, initialFamily) => {
+  const [size, setSize] = useState(initialSize)
+  const [family, setFamily] = useState(initialFamily)
+  const font = `${size}px ${family}`
+  return {
+    font,
+    size,
+    setSize,
+    family,
+    setFamily,
+  }
 }

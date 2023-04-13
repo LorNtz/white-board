@@ -20,6 +20,7 @@ import {
   getPositionFromMouseOrTouchEvent,
 } from "../utils";
 import {
+  useFont,
   useCursorType,
   useElementContainer,
   useDevicePixelRatio,
@@ -71,6 +72,11 @@ function createWrappedElement (type, props){
       wrappedElement.roughElement = generator.ellipse(x, y, width, height, roughOpts)
       break
 
+    case ELEMENT_TYPE.TEXT:
+      wrappedElement.text = text
+      wrappedElement.font = font
+      break
+
     default:
       throw new Error(`creation of element of ${type} type is not implemented yet`)
   }
@@ -88,6 +94,11 @@ function drawElement (roughCanvas, context, element) {
     case ELEMENT_TYPE.DIAMOND:
     case ELEMENT_TYPE.RECTANGLE:
       roughCanvas.draw(element.roughElement)
+      break
+    case ELEMENT_TYPE.TEXT:
+      context.textBaseline = 'top'
+      context.font = element.font
+      context.fillText(element.text, element.x1, element.y1)
       break
 
     default:
@@ -107,7 +118,12 @@ let panningStartPos = { x: 0, y: 0 }
 
 function WhiteBoard ({ width, height }) {
   
-  const [elementMap, setElement, setElementMap] = useElementContainer()
+  const {
+    elementMap,
+    setElement,
+    deleteElement,
+    setElementMap,
+  } = useElementContainer()
   const elements = [ ...elementMap.values() ]
   
   const [currentAction, setCurrentAction] = useState('none')
@@ -119,21 +135,34 @@ function WhiteBoard ({ width, height }) {
   const [cameraZoom, setCameraZoom] = useState(1)
   const [zoomOrigin, setZoomOrigin] = useState({ x: 0, y: 0 })
   const [scrollSensitivity, setScrollSensitivity] = useState(0.0005)
+
+  const {
+    font: defaultFont,
+    setSize: setDefaultFontSize,
+    setFamily: setDefaultFontFamily,
+  } = useFont(24, 'sans-serif')
   
   const canvasRef = useRef(null)
   const [, setCanvasCursorType] = useCursorType(canvasRef.current, 'default')
+  
+  const [textEditPosition, setTextEditPosition] = useState({ x: 0, y: 0 })
+  const textAreaRef = useRef(null)
   
   const handleMouseDown = (event) => {
     const buttonName = getButtonNameFromMouseEvent(event)
     mouseState[buttonName] = true
     
     const canvas = canvasRef.current
-    let { x, y } = getPositionFromMouseOrTouchEvent(event)
+    let { x: clientX, y: clientY } = getPositionFromMouseOrTouchEvent(event)
+
+    if (currentAction === 'typing') {
+      return
+    }
 
     if (activeToolType === TOOL_TYPE.PAN || mouseState.middle) {
       setCurrentAction('panning')
-      panningStartPos.x = x / cameraZoom - cameraOffset.x
-      panningStartPos.y = y / cameraZoom - cameraOffset.y
+      panningStartPos.x = clientX / cameraZoom - cameraOffset.x
+      panningStartPos.y = clientY / cameraZoom - cameraOffset.y
       return
     }
 
@@ -142,7 +171,7 @@ function WhiteBoard ({ width, height }) {
     const {
       x: canvasX,
       y: canvasY,
-    } = screenToCanvasCoord(canvas, x, y, {
+    } = screenToCanvasCoord(canvas, clientX, clientY, {
       translateX: cameraOffset.x,
       translateY: cameraOffset.y,
       zoom: cameraZoom,
@@ -174,17 +203,58 @@ function WhiteBoard ({ width, height }) {
       })
       setElement(element.id, element)
       setManipulatingElement(element)
+    } else if (activeToolType === TOOL_TYPE.TEXT) {
+      setActiveToolType(TOOL_TYPE.SELECTION)
+      startTextEditing({
+        screenX: clientX,
+        screenY: clientY,
+      })
+      const zIndex = elements.length
+      const element = createWrappedElement(ELEMENT_TYPE.TEXT, {
+        zIndex,
+        x1: canvasX,
+        y1: canvasY,
+        text: '',
+        font: defaultFont,
+      })
+      setElement(element.id, element)
+      setManipulatingElement(element)
     }
   }
 
-  const updateElement = (id, { x1, y1, x2, y2, }) => {
+  function startTextEditing ({
+    screenX,
+    screenY,
+  }) {
+    setTextEditPosition({ x: screenX, y: screenY })
+    setCurrentAction('typing')
+    deselectElements()
+  }
+
+  function submitText () {
+    const textElement = manipulatingElement
+    let text = textAreaRef.current.value
+    if (text.trim() === '') {
+      deleteElement(textElement.id)
+      setManipulatingElement(null)
+    }
+
+    updateElement(textElement.id, { text })
+    setCurrentAction('none')
+  }
+
+  function deselectElements () {
+    // TODO: implementation
+  }
+
+  const updateElement = (id, { x1, y1, x2, y2, text, }) => {
     const element = elementMap.get(id)
-    const seed = getSeedFromRoughElement(element.roughElement)
     switch (element.type) {
       case ELEMENT_TYPE.LINE:
       case ELEMENT_TYPE.RECTANGLE:
       case ELEMENT_TYPE.ELLIPSE:
       case ELEMENT_TYPE.DIAMOND:
+        const seed = getSeedFromRoughElement(element.roughElement)
         const updatedElement = createWrappedElement(element.type, {
           id,
           x1,
@@ -194,6 +264,13 @@ function WhiteBoard ({ width, height }) {
           seed,
         })
         setElement(id, updatedElement)
+        break
+
+      case ELEMENT_TYPE.TEXT:
+        setElement(id, {
+          ...element,
+          text: text
+        })
         break
 
       default:
@@ -268,13 +345,18 @@ function WhiteBoard ({ width, height }) {
   const handleMouseUp = (event) => {
     const buttonName = getButtonNameFromMouseEvent(event)
     mouseState[buttonName] = false
+
+    if (currentAction === 'typing') {
+      return
+    }
+    
     setCurrentAction('none')
     setManipulatingElement(null)
   }
 
   const handleMouseOut = () => {
     mouseState.middle = mouseState.left = mouseState.right = false
-    setCurrentAction('none')
+    // setCurrentAction('none')
   }
 
   const handleContextMenu = (event) => {
@@ -365,11 +447,57 @@ function WhiteBoard ({ width, height }) {
     })
   }, [elementMap, cameraOffset, cameraZoom, zoomOrigin, devicePixelRatio])
   
+  useEffect(() => {
+    if (currentAction === 'typing') {
+      const textArea = textAreaRef.current
+      setTimeout(() => {
+        textArea.focus()
+      }, 0)
+    }
+  }, [currentAction, manipulatingElement])
+  // INFO: notice that textarea uses position info of manipulatingElement
+  // thus manipulatingElement is a implicit dependency and should be put in the dep list
+  // otherwise textarea won't gain focus when it rerenders while currentAction doesn't change
+  
   return (
     <StageStateContext.Provider value={{
-      width, height, activeToolType, setActiveToolType, cameraZoom, adjustZoom
+      width,
+      height,
+      activeToolType,
+      setActiveToolType,
+      cameraZoom,
+      adjustZoom,
     }}>
+      {
+        /* INFO: consider make UI a compose component (inspired by https://youtu.be/vPRdY87_SH0) */
+      }
       <UI></UI>
+      { 
+        // TODO: refactor this into a component
+        currentAction === 'typing' 
+        ? <textarea
+            ref={textAreaRef}
+            style={{
+              font: defaultFont,
+              position: 'fixed',
+              top: textEditPosition.y,
+              left: textEditPosition.x,
+              transformOrigin: 'left top',
+              transform: `scale(${cameraZoom})`,
+              margin: 0,
+              padding: 0,
+              outline: 0,
+              resize: 'none',
+              overflow: 'hidden',
+              tabIndex: 0,
+              whiteSpace: 'pre',
+              background: 'transparent'
+            }}
+            onInput={function updateStyle() { /* TODO: implementation */ }}
+            onBlur={submitText}
+          ></textarea> 
+        : null
+      }
       <canvas
         id="canvas"
         ref={canvasRef}
@@ -381,6 +509,7 @@ function WhiteBoard ({ width, height }) {
         onMouseOut={handleMouseOut}
         onWheel={handleWheel}
         onContextMenu={handleContextMenu}
+        onFocus={() => console.log('canvas gain focus')}
       >
         This is fallback content
       </canvas>
