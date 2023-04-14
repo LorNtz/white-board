@@ -237,9 +237,10 @@ function WhiteBoard ({ width, height }) {
     if (text.trim() === '') {
       deleteElement(textElement.id)
       setManipulatingElement(null)
+    } else {
+      updateElement(textElement.id, { text })
     }
 
-    updateElement(textElement.id, { text })
     setCurrentAction('none')
   }
 
@@ -484,6 +485,7 @@ function WhiteBoard ({ width, height }) {
               left: textEditPosition.x,
               transformOrigin: 'left top',
               transform: `scale(${cameraZoom})`,
+              lineHeight: '1em',
               margin: 0,
               padding: 0,
               outline: 0,
