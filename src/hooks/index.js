@@ -1,9 +1,11 @@
 import {
   useRef,
+  useMemo,
   useState,
   useEffect,
 } from 'react'
 import {
+  getFontMetrics,
   getButtonNameFromMouseEvent,
 } from '../utils'
 import {
@@ -104,11 +106,18 @@ export const useFont = (initialSize, initialFamily) => {
   const [size, setSize] = useState(initialSize)
   const [family, setFamily] = useState(initialFamily)
   const font = `${size}px ${family}`
+  
+  const fontMetrics = useMemo(
+    () => getFontMetrics(font),
+    [initialSize, initialFamily]
+  )
+  
   return {
     font,
     size,
     setSize,
     family,
     setFamily,
+    fontMetrics,
   }
 }

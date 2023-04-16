@@ -12,6 +12,8 @@ import {
   clamp,
   uuid24bit,
   fixResolution,
+  getFontMetrics,
+  createTextObject,
   posIsWithinElement,
   screenToCanvasCoord,
   getElementAtPosition,
@@ -73,7 +75,7 @@ function createWrappedElement (type, props){
       break
 
     case ELEMENT_TYPE.TEXT:
-      wrappedElement.text = text
+      wrappedElement.textObject = createTextObject({ rawText: text })
       wrappedElement.font = font
       break
 
@@ -98,7 +100,20 @@ function drawElement (roughCanvas, context, element) {
     case ELEMENT_TYPE.TEXT:
       context.textBaseline = 'top'
       context.font = element.font
-      context.fillText(element.text, element.x1, element.y1)
+      const { lines } = element.textObject
+      const { charWidth, lineHeight, fontSize } = getFontMetrics(element.font)
+      for (let index = 0; index < lines.length; index++) {
+        const line = lines[index]
+        // TODO: should be using lineHeight instead of fontSize
+        // context.fillText(line, element.x1, element.y1 + index * lineHeight)
+        context.fillText(line, element.x1, element.y1 + index * fontSize)
+      }
+      
+      // context.beginPath()
+      // context.lineWidth = '1'
+      // context.strokeStyle = 'red'
+      // context.rect(element.x1, element.y1, charWidth, lineHeight)
+      // context.stroke()
       break
 
     default:
@@ -140,6 +155,7 @@ function WhiteBoard ({ width, height }) {
     font: defaultFont,
     setSize: setDefaultFontSize,
     setFamily: setDefaultFontFamily,
+    fontMetrics: defaultFontMetrics,
   } = useFont(24, 'sans-serif')
   
   const canvasRef = useRef(null)
@@ -205,6 +221,7 @@ function WhiteBoard ({ width, height }) {
       setManipulatingElement(element)
     } else if (activeToolType === TOOL_TYPE.TEXT) {
       setActiveToolType(TOOL_TYPE.SELECTION)
+      setCurrentAction('typing')
       startTextEditing({
         screenX: clientX,
         screenY: clientY,
@@ -219,6 +236,7 @@ function WhiteBoard ({ width, height }) {
       })
       setElement(element.id, element)
       setManipulatingElement(element)
+      deselectElements()
     }
   }
 
@@ -227,8 +245,6 @@ function WhiteBoard ({ width, height }) {
     screenY,
   }) {
     setTextEditPosition({ x: screenX, y: screenY })
-    setCurrentAction('typing')
-    deselectElements()
   }
 
   function submitText () {
@@ -268,9 +284,13 @@ function WhiteBoard ({ width, height }) {
         break
 
       case ELEMENT_TYPE.TEXT:
+        const context = canvasRef.current.getContext('2d')
+        const textMetrics = context.measureText(text)
+        const textObject = createTextObject({ rawText: text })
         setElement(id, {
           ...element,
-          text: text
+          textObject,
+          textMetrics
         })
         break
 

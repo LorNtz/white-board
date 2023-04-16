@@ -188,3 +188,41 @@ export function getButtonNameFromMouseEvent (event) {
     throw new Error(`Invalid button: ${button}`)
   }
 }
+
+const fontMetricsCache = {}
+export function getFontMetrics (font) {
+  if (fontMetricsCache[font]) {
+    return fontMetricsCache[font]
+  }
+  
+  const body = document.body
+  const line = document.createElement('div')
+  line.style.position = 'absolute'
+  line.style.whiteSpace = 'nowrap'
+  line.style.font = font
+  body.appendChild(line)
+
+  const testText = 'mmmmmmmmmm'
+  line.innerHTML = testText
+  const charWidth = line.offsetWidth / testText.length
+  const lineHeight = line.offsetHeight
+  const fontSize = parseInt(line.style.fontSize)
+
+  body.removeChild(line)
+
+  const metrics = {
+    charWidth,
+    lineHeight,
+    fontSize,
+  }
+
+  return metrics
+}
+
+export function createTextObject ({ rawText }) {
+  let lines = rawText.split('\n').map(str => str.concat('\n'))
+  return {
+    rawText,
+    lines,
+  }
+}
