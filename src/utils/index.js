@@ -189,38 +189,60 @@ export function getButtonNameFromMouseEvent (event) {
   }
 }
 
-const fontMetricsCache = {}
-export function getFontMetrics (font) {
-  if (fontMetricsCache[font]) {
-    return fontMetricsCache[font]
+export function getPreprocessedText (rawText) {
+  return rawText
+    .replace(/\t/g, '    ')     // replace tabs with 4 whitespaces
+    .replace(/\r?\n|\r/g, '\n') // replace enters with \n
+}
+
+const DUMMY_STRING = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.toLocaleUpperCase()
+const lineHeightCache = {}
+export function getLineHeightOfFont (font) {
+  if (lineHeightCache[font]) {
+    return lineHeightCache[font]
   }
+  lineHeightCache[font] = getFontMetrics(DUMMY_STRING, font).height
+  return lineHeightCache[font]
+}
+
+
+const fontMetricsCache = {}
+export function getFontMetrics (text, font) {
+  const container = document.createElement('div')
+  container.style.position = 'absolute'
+  container.style.whiteSpace = 'pre'
+  container.style.font = font
+  container.style.minHeight = '1em'
+  container.innerText = text
+
   
+  const line = document.createElement('span')
+  line.style.display = 'inline-block'
+  line.style.overflow = 'hidden'
+  line.style.width = '1px'
+  line.style.height = '1px'
+  
+  container.appendChild(line)
   const body = document.body
-  const line = document.createElement('div')
-  line.style.position = 'absolute'
-  line.style.whiteSpace = 'nowrap'
-  line.style.font = font
-  body.appendChild(line)
+  body.appendChild(container)
 
-  const testText = 'mmmmmmmmmm'
-  line.innerHTML = testText
-  const charWidth = line.offsetWidth / testText.length
-  const lineHeight = line.offsetHeight
-  const fontSize = parseInt(line.style.fontSize)
+  const width = container.offsetWidth
+  const height = container.offsetHeight
+  const baseline = line.offsetTop + line.offsetHeight
 
-  body.removeChild(line)
+  body.removeChild(container)
 
   const metrics = {
-    charWidth,
-    lineHeight,
-    fontSize,
+    width,
+    height,
+    baseline,
   }
 
   return metrics
 }
 
 export function createTextObject ({ rawText }) {
-  let lines = rawText.split('\n').map(str => str.concat('\n'))
+  let lines = rawText.replace(/\r\n?/g, "\n").split("\n")
   return {
     rawText,
     lines,

@@ -107,17 +107,11 @@ export const useFont = (initialSize, initialFamily) => {
   const [family, setFamily] = useState(initialFamily)
   const font = `${size}px ${family}`
   
-  const fontMetrics = useMemo(
-    () => getFontMetrics(font),
-    [initialSize, initialFamily]
-  )
-  
   return {
     font,
     size,
     setSize,
     family,
     setFamily,
-    fontMetrics,
   }
 }

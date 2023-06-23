@@ -16,6 +16,8 @@ import {
   createTextObject,
   posIsWithinElement,
   screenToCanvasCoord,
+  getLineHeightOfFont,
+  getPreprocessedText,
   getElementAtPosition,
   getSeedFromRoughElement,
   getButtonNameFromMouseEvent,
@@ -58,29 +60,25 @@ function createWrappedElement (type, props){
     seed: seed || rough.newSeed(),
   }
   
-  switch (type) {
-    case ELEMENT_TYPE.LINE:
-      wrappedElement.roughElement = generator.line(x1, y1, x2, y2, roughOpts)
-      break
-
-    case ELEMENT_TYPE.RECTANGLE:
-      wrappedElement.roughElement = generator.rectangle(x1, y1, x2 - x1, y2 - y1, roughOpts)
-      break
-
-    case ELEMENT_TYPE.ELLIPSE:
-      const width = x2 - x1
-      const height = y2 - y1
-      const [x, y] = [x1 + width / 2, y1 + height / 2]
-      wrappedElement.roughElement = generator.ellipse(x, y, width, height, roughOpts)
-      break
-
-    case ELEMENT_TYPE.TEXT:
-      wrappedElement.textObject = createTextObject({ rawText: text })
-      wrappedElement.font = font
-      break
-
-    default:
-      throw new Error(`creation of element of ${type} type is not implemented yet`)
+  if (type === ELEMENT_TYPE.LINE) {
+    wrappedElement.roughElement = generator.line(x1, y1, x2, y2, roughOpts)
+  } else if (type === ELEMENT_TYPE.RECTANGLE) {
+    wrappedElement.roughElement = generator.rectangle(x1, y1, x2 - x1, y2 - y1, roughOpts)
+  } else if (type === ELEMENT_TYPE.ELLIPSE) {
+    const width = x2 - x1
+    const height = y2 - y1
+    const [x, y] = [x1 + width / 2, y1 + height / 2]
+    wrappedElement.roughElement = generator.ellipse(x, y, width, height, roughOpts)
+  } else if (type === ELEMENT_TYPE.TEXT) {
+    const preprocessedText = getPreprocessedText(text)
+    wrappedElement.textObject = createTextObject({ rawText: preprocessedText })
+    wrappedElement.font = font
+    const { width, height, baseline } = getFontMetrics(preprocessedText, font)
+    wrappedElement.width = width
+    wrappedElement.height = height
+    wrappedElement.baseline = baseline
+  } else {
+    throw new Error(`creation of element of ${type} type is not implemented yet`)
   }
   
   return wrappedElement
@@ -98,16 +96,23 @@ function drawElement (roughCanvas, context, element) {
       roughCanvas.draw(element.roughElement)
       break
     case ELEMENT_TYPE.TEXT:
-      context.textBaseline = 'top'
+      context.save()
+      
       context.font = element.font
       const { lines } = element.textObject
-      const { charWidth, lineHeight, fontSize } = getFontMetrics(element.font)
+      const { height, baseline } = element
+      const lineHeight = getLineHeightOfFont(element.font)
+      const verticalOffset = height - baseline
       for (let index = 0; index < lines.length; index++) {
         const line = lines[index]
-        // TODO: should be using lineHeight instead of fontSize
-        // context.fillText(line, element.x1, element.y1 + index * lineHeight)
-        context.fillText(line, element.x1, element.y1 + index * fontSize)
+        context.fillText(
+          line,   // text
+          element.x1,   // x
+          element.y1 + (index + 1) * lineHeight - verticalOffset   // y
+        )
       }
+
+      context.restore()
       
       // context.beginPath()
       // context.lineWidth = '1'
@@ -155,7 +160,6 @@ function WhiteBoard ({ width, height }) {
     font: defaultFont,
     setSize: setDefaultFontSize,
     setFamily: setDefaultFontFamily,
-    fontMetrics: defaultFontMetrics,
   } = useFont(24, 'sans-serif')
   
   const canvasRef = useRef(null)
@@ -351,6 +355,7 @@ function WhiteBoard ({ width, height }) {
       const { id, x1, x2, y1, y2, offsetX, offsetY } = manipulatingElement
       const width = x2 - x1
       const height = y2 - y1
+      // TODO: set a threshold to prevent unwanted minor move
       const nextX = canvasX - offsetX
       const nextY = canvasY - offsetY
       
@@ -416,7 +421,8 @@ function WhiteBoard ({ width, height }) {
   }
 
   const handleWheel = (event) => {
-    if (currentAction === 'panning') return
+    // TODO: consider adding back the zoom support when action is typing
+    if (['panning', 'typing'].includes(currentAction)) return
 
     const { deltaY } = event
     const reversed = false  // TODO: make this a state in the future
@@ -466,7 +472,13 @@ function WhiteBoard ({ width, height }) {
     elements.forEach((element) => {
       drawElement(rc, ctx, element)
     })
-  }, [elementMap, cameraOffset, cameraZoom, zoomOrigin, devicePixelRatio])
+  }, [
+    elementMap,
+    cameraOffset,
+    cameraZoom,
+    zoomOrigin,
+    devicePixelRatio,
+  ])
   
   useEffect(() => {
     if (currentAction === 'typing') {
@@ -505,7 +517,6 @@ function WhiteBoard ({ width, height }) {
               left: textEditPosition.x,
               transformOrigin: 'left top',
               transform: `scale(${cameraZoom})`,
-              lineHeight: '1em',
               margin: 0,
               padding: 0,
               outline: 0,
