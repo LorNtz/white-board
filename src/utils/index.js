@@ -205,8 +205,27 @@ export function getLineHeightOfFont (font) {
   return lineHeightCache[font]
 }
 
+let helperCanvas
+export function measureLineWidth (textLine, font) {
+  if (!helperCanvas) {
+    helperCanvas = document.createElement('canvas')
+  }
+  const context = helperCanvas.getContext('2d')
+  context.font = font
 
-const fontMetricsCache = {}
+  const metrics = context.measureText(textLine)
+  return metrics.width
+}
+
+export function measureTextWidth (text, font) {
+  const lines = text.split('\n')
+  let width = 0
+  lines.forEach(line => {
+    width = Math.max(width, measureLineWidth(line, font))
+  })
+  return width
+}
+
 export function getFontMetrics (text, font) {
   const container = document.createElement('div')
   container.style.position = 'absolute'
@@ -239,6 +258,15 @@ export function getFontMetrics (text, font) {
   }
 
   return metrics
+}
+
+export function getFontString (fontProps) {
+  const { size, family, style, variant, weight } = fontProps
+  return (style ? style + ' ' : '') 
+    + (variant ? variant + ' ' : '')
+    + (weight ? weight + ' ': '')
+    + `${size}px `
+    + family
 }
 
 export function createTextObject ({ rawText }) {

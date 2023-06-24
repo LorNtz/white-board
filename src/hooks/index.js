@@ -5,7 +5,7 @@ import {
   useEffect,
 } from 'react'
 import {
-  getFontMetrics,
+  getFontString,
   getButtonNameFromMouseEvent,
 } from '../utils'
 import {
@@ -102,16 +102,36 @@ export const useMouseState = (ref) => {
   return getMouseState
 }
 
-export const useFont = (initialSize, initialFamily) => {
-  const [size, setSize] = useState(initialSize)
-  const [family, setFamily] = useState(initialFamily)
-  const font = `${size}px ${family}`
+const defaultFontProps = {
+  size: 16,
+  family: 'sans-serif',
+  style: 'normal',
+  variant: 'normal',
+  weight: 400,
+}
+export const useFont = (initialFontProps) => {
+  const fontProps = Object.assign({}, defaultFontProps, initialFontProps)
+  const fontString = getFontString(fontProps)
   
-  return {
-    font,
-    size,
-    setSize,
-    family,
-    setFamily,
+  const [font, setFont] = useState(() => ({
+    fontString,
+    ...fontProps
+  }))
+
+  const setFontProps = props => {
+    const newFontProps = {
+      ...font,
+      ...props
+    }
+    const newFontString = getFontString(newFontProps)
+    setFont({
+      newFontString,
+      ...newFontProps
+    })
   }
+  
+  return [
+    font,
+    setFontProps
+  ]
 }

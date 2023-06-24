@@ -12,8 +12,10 @@ import {
   clamp,
   uuid24bit,
   fixResolution,
+  getFontString,
   getFontMetrics,
   createTextObject,
+  measureTextWidth,
   posIsWithinElement,
   screenToCanvasCoord,
   getLineHeightOfFont,
@@ -73,7 +75,8 @@ function createWrappedElement (type, props){
     const preprocessedText = getPreprocessedText(text)
     wrappedElement.textObject = createTextObject({ rawText: preprocessedText })
     wrappedElement.font = font
-    const { width, height, baseline } = getFontMetrics(preprocessedText, font)
+    const fontString = font.fontString
+    const { width, height, baseline } = getFontMetrics(preprocessedText, fontString)
     wrappedElement.width = width
     wrappedElement.height = height
     wrappedElement.baseline = baseline
@@ -98,10 +101,11 @@ function drawElement (roughCanvas, context, element) {
     case ELEMENT_TYPE.TEXT:
       context.save()
       
-      context.font = element.font
+      const fontString = element.font.fontString
+      context.font = fontString
       const { lines } = element.textObject
       const { height, baseline } = element
-      const lineHeight = getLineHeightOfFont(element.font)
+      const lineHeight = getLineHeightOfFont(fontString)
       const verticalOffset = height - baseline
       for (let index = 0; index < lines.length; index++) {
         const line = lines[index]
@@ -156,11 +160,10 @@ function WhiteBoard ({ width, height }) {
   const [zoomOrigin, setZoomOrigin] = useState({ x: 0, y: 0 })
   const [scrollSensitivity, setScrollSensitivity] = useState(0.0005)
 
-  const {
-    font: defaultFont,
-    setSize: setDefaultFontSize,
-    setFamily: setDefaultFontFamily,
-  } = useFont(24, 'sans-serif')
+  const [
+    defaultFont,
+    setDefaultFontProps
+  ] = useFont({ size: 24, family: 'sans-serif' })
   
   const canvasRef = useRef(null)
   const [, setCanvasCursorType] = useCursorType(canvasRef.current, 'default')
@@ -444,6 +447,17 @@ function WhiteBoard ({ width, height }) {
   const handleClearCanvas = () => {
     setElementMap(new Map([]))
   }
+
+  const handleInputInTextEditor = (event) => {
+    const textarea = textAreaRef.current
+    const text = textarea.value
+    
+    const fontString = manipulatingElement.font.fontString
+    const width = measureTextWidth(text, fontString)
+    textarea.style.width = `${width}px`
+    
+    textarea.style.height = `${textarea.scrollHeight}px`
+  }
   
   useEffect(() => {
     const canvas = canvasRef.current
@@ -511,7 +525,8 @@ function WhiteBoard ({ width, height }) {
         ? <textarea
             ref={textAreaRef}
             style={{
-              font: defaultFont,
+            // BUG: font size can not be set below 12px, otherwise is stays at 12px
+              font: defaultFont.fontString,
               position: 'fixed',
               top: textEditPosition.y,
               left: textEditPosition.x,
@@ -526,7 +541,7 @@ function WhiteBoard ({ width, height }) {
               whiteSpace: 'pre',
               background: 'transparent'
             }}
-            onInput={function updateStyle() { /* TODO: implementation */ }}
+            onInput={handleInputInTextEditor}
             onBlur={submitText}
           ></textarea> 
         : null
