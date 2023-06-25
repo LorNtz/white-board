@@ -55,7 +55,7 @@ function createWrappedElement (type, props){
     y1,
     x2,
     y2,
-    id: id || uuid24bit()
+    id: id ?? uuid24bit()
   }
   
   let roughOpts = {
@@ -79,6 +79,8 @@ function createWrappedElement (type, props){
     const { width, height, baseline } = getFontMetrics(preprocessedText, fontString)
     wrappedElement.width = width
     wrappedElement.height = height
+    wrappedElement.x2 = x1 + width
+    wrappedElement.y2 = y1 + height
     wrappedElement.baseline = baseline
   } else {
     throw new Error(`creation of element of ${type} type is not implemented yet`)
@@ -105,6 +107,7 @@ function drawElement (roughCanvas, context, element) {
       context.font = fontString
       const { lines } = element.textObject
       const { height, baseline } = element
+      // FIX: lineHeight is not accurate enough
       const lineHeight = getLineHeightOfFont(fontString)
       const verticalOffset = height - baseline
       for (let index = 0; index < lines.length; index++) {
@@ -117,12 +120,6 @@ function drawElement (roughCanvas, context, element) {
       }
 
       context.restore()
-      
-      // context.beginPath()
-      // context.lineWidth = '1'
-      // context.strokeStyle = 'red'
-      // context.rect(element.x1, element.y1, charWidth, lineHeight)
-      // context.stroke()
       break
 
     default:
@@ -163,7 +160,7 @@ function WhiteBoard ({ width, height }) {
   const [
     defaultFont,
     setDefaultFontProps
-  ] = useFont({ size: 24, family: 'sans-serif' })
+  ] = useFont({ size: 24, family: 'sans-serif', weight: 400 })
   
   const canvasRef = useRef(null)
   const [, setCanvasCursorType] = useCursorType(canvasRef.current, 'default')
@@ -271,15 +268,16 @@ function WhiteBoard ({ width, height }) {
     // TODO: implementation
   }
 
-  const updateElement = (id, { x1, y1, x2, y2, text, }) => {
+  const updateElement = (id, { x1, y1, x2, y2, text, font, }) => {
     const element = elementMap.get(id)
+    let updatedElement
     switch (element.type) {
       case ELEMENT_TYPE.LINE:
       case ELEMENT_TYPE.RECTANGLE:
       case ELEMENT_TYPE.ELLIPSE:
       case ELEMENT_TYPE.DIAMOND:
         const seed = getSeedFromRoughElement(element.roughElement)
-        const updatedElement = createWrappedElement(element.type, {
+        updatedElement = createWrappedElement(element.type, {
           id,
           x1,
           y1,
@@ -291,14 +289,14 @@ function WhiteBoard ({ width, height }) {
         break
 
       case ELEMENT_TYPE.TEXT:
-        const context = canvasRef.current.getContext('2d')
-        const textMetrics = context.measureText(text)
-        const textObject = createTextObject({ rawText: text })
-        setElement(id, {
-          ...element,
-          textObject,
-          textMetrics
+        updatedElement = createWrappedElement(ELEMENT_TYPE.TEXT, {
+          id,
+          x1: x1 ? x1 : element.x1,
+          y1: y1 ? y1 : element.y1,
+          text: text ? text : element.textObject.rawText,
+          font: font ? font : element.font,
         })
+        setElement(id, updatedElement)
         break
 
       default:
@@ -534,9 +532,12 @@ function WhiteBoard ({ width, height }) {
               transform: `scale(${cameraZoom})`,
               margin: 0,
               padding: 0,
+              border: 0,
+              boxSizing: "content-box",
               outline: 0,
               resize: 'none',
               overflow: 'hidden',
+              backfaceVisibility: 'hidden',
               tabIndex: 0,
               whiteSpace: 'pre',
               background: 'transparent'
