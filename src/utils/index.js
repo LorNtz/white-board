@@ -237,7 +237,6 @@ export function getFontMetrics (text, font) {
   container.style.font = font
   container.style.minHeight = '1em'
   container.innerText = text
-
   
   const line = document.createElement('span')
   line.style.display = 'inline-block'

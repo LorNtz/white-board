@@ -12,13 +12,11 @@ import {
   clamp,
   uuid24bit,
   fixResolution,
-  getFontString,
   getFontMetrics,
   createTextObject,
   measureTextWidth,
   posIsWithinElement,
   screenToCanvasCoord,
-  getLineHeightOfFont,
   getPreprocessedText,
   getElementAtPosition,
   getSeedFromRoughElement,
@@ -46,7 +44,7 @@ import UI from '../components/UI';
 const generator = rough.generator()
 
 function createWrappedElement (type, props){
-  const { zIndex, id, x1, y1, x2, y2, text, font, seed } = props
+  const { zIndex, id, x1, y1, x2, y2, text, font, seed, lineHeight } = props
 
   let wrappedElement = {
     type,
@@ -82,6 +80,7 @@ function createWrappedElement (type, props){
     wrappedElement.x2 = x1 + width
     wrappedElement.y2 = y1 + height
     wrappedElement.baseline = baseline
+    wrappedElement.lineHeight = lineHeight
   } else {
     throw new Error(`creation of element of ${type} type is not implemented yet`)
   }
@@ -107,16 +106,15 @@ function drawElement (roughCanvas, context, element) {
       context.font = fontString
       const { lines } = element.textObject
       const { height, baseline } = element
-      // FIX: lineHeight is not accurate enough
-      const lineHeight = getLineHeightOfFont(fontString)
+      const lineHeight = element.lineHeight
+      // const lineHeight = getLineHeightOfFont(fontString) // not accurate enough
       const verticalOffset = height - baseline
+      
       for (let index = 0; index < lines.length; index++) {
         const line = lines[index]
-        context.fillText(
-          line,   // text
-          element.x1,   // x
-          element.y1 + (index + 1) * lineHeight - verticalOffset   // y
-        )
+        const x = element.x1
+        const y = element.y1 + (index + 1) * lineHeight - verticalOffset
+        context.fillText(line, x, y)
       }
 
       context.restore()
@@ -160,7 +158,7 @@ function WhiteBoard ({ width, height }) {
   const [
     defaultFont,
     setDefaultFontProps
-  ] = useFont({ size: 24, family: 'sans-serif', weight: 400 })
+  ] = useFont({ size: 32, family: 'sans-serif', weight: 400 })
   
   const canvasRef = useRef(null)
   const [, setCanvasCursorType] = useCursorType(canvasRef.current, 'default')
@@ -253,12 +251,17 @@ function WhiteBoard ({ width, height }) {
 
   function submitText () {
     const textElement = manipulatingElement
-    let text = textAreaRef.current.value
+    const textarea = textAreaRef.current
+    let text = textarea.value
+    const lineCount = text.split('\n').length
+    const lineHeight = lineCount > 2 
+      ? textarea.scrollHeight / lineCount
+      : textarea.scrollHeight / 2
     if (text.trim() === '') {
       deleteElement(textElement.id)
       setManipulatingElement(null)
     } else {
-      updateElement(textElement.id, { text })
+      updateElement(textElement.id, { text, lineHeight })
     }
 
     setCurrentAction('none')
@@ -268,7 +271,7 @@ function WhiteBoard ({ width, height }) {
     // TODO: implementation
   }
 
-  const updateElement = (id, { x1, y1, x2, y2, text, font, }) => {
+  const updateElement = (id, { x1, y1, x2, y2, text, font, lineHeight }) => {
     const element = elementMap.get(id)
     let updatedElement
     switch (element.type) {
@@ -295,6 +298,7 @@ function WhiteBoard ({ width, height }) {
           y1: y1 ? y1 : element.y1,
           text: text ? text : element.textObject.rawText,
           font: font ? font : element.font,
+          lineHeight: lineHeight ? lineHeight : element.lineHeight
         })
         setElement(id, updatedElement)
         break
