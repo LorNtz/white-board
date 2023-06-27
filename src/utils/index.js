@@ -11,21 +11,10 @@ import {
  * @returns {[number, number]} a tuple of corrected coordinates
  */
 export function screenToCanvasCoord (canvas, clientX, clientY, opt = {}) {
-  const defaultOptions = {
-    translateX: 0,
-    translateY: 0,
-    zoom: 1,
-    origin: {
-      x: 0,
-      y: 0
-    }
-  }
-  const {
-    translateX,
-    translateY,
-    zoom,
-    origin
-  } = Object.assign({}, defaultOptions, opt)
+  const translateX = opt.translateX ?? 0
+  const translateY = opt.translateY ?? 0
+  const zoom = opt.zoom ?? 1
+  const origin = opt.origin ?? { x: 0, y: 0 }
 
   const boundingRect = canvas.getBoundingClientRect()
   const { left, top } = boundingRect
@@ -34,6 +23,20 @@ export function screenToCanvasCoord (canvas, clientX, clientY, opt = {}) {
   return {
     x: (x - origin.x) / zoom - translateX,
     y: (y - origin.y) / zoom - translateY
+  }
+}
+
+export function getViewRect (canvas) {
+  const ctx = canvas.getContext('2d')
+  const width = canvas.width
+  const height = canvas.height
+  const { a, d, e, f } = ctx.getTransform()
+  
+  return {
+    x1: -e / a,
+    y1: -f / d,
+    x2: (width - e) / a,
+    y2: (height - f) / d
   }
 }
 

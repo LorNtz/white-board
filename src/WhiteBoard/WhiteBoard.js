@@ -11,6 +11,7 @@ import rough from 'roughjs/bundled/rough.esm'
 import {
   clamp,
   uuid24bit,
+  getViewRect,
   fixResolution,
   getFontMetrics,
   createTextObject,
@@ -125,6 +126,41 @@ function drawElement (roughCanvas, context, element) {
   }
 }
 
+function drawGrids (context, { from, to, gridSize }) {
+  context.save()
+  const { a: zoom } = context.getTransform()
+
+  context.lineWidth = 1 / zoom
+  context.strokeStyle = 'rgba(0, 0, 0, 0.1)'
+  context.beginPath()
+  
+  // vertical lines
+  for (let x = from.x - (from.x % gridSize); x < to.x; x += gridSize) {
+    context.moveTo(x, from.y)
+    context.lineTo(x, to.y)
+  }
+  // horizontal lines
+  for (let y = from.y - (from.y % gridSize); y < to.y; y += gridSize) {
+    context.moveTo(from.x, y)
+    context.lineTo(to.x, y)
+  }
+  context.stroke()
+  
+  context.lineWidth = 2 / zoom
+  context.beginPath()
+  for (let x = from.x - (from.x % (4 * gridSize)); x < to.x; x += 4 * gridSize) {
+    context.moveTo(x, from.y)
+    context.lineTo(x, to.y)
+  }
+  for (let y = from.y - (from.y % (4 * gridSize)); y < to.y; y += 4 * gridSize) {
+    context.moveTo(from.x, y)
+    context.lineTo(to.x, y)
+  }
+  context.stroke()
+
+  context.restore()
+}
+
 // TODO: move this into a ref and maybe create a custom hook for it
 const mouseState = {
   left: false,
@@ -159,6 +195,8 @@ function WhiteBoard ({ width, height }) {
     defaultFont,
     setDefaultFontProps
   ] = useFont({ size: 32, family: 'sans-serif', weight: 400 })
+
+  const [gridSize, setGridSize] = useState(20)
   
   const canvasRef = useRef(null)
   const [, setCanvasCursorType] = useCursorType(canvasRef.current, 'default')
@@ -484,16 +522,41 @@ function WhiteBoard ({ width, height }) {
     
     // panning
     ctx.translate(cameraOffset.x, cameraOffset.y)
+
+    // or only apply one transform:
+    // ctx.transform(
+    //   cameraZoom,
+    //   0,
+    //   0,
+    //   cameraZoom,
+    //   zoomOrigin.x + cameraOffset.x * cameraZoom,
+    //   zoomOrigin.y + cameraOffset.y * cameraZoom
+    // )
+    
+    const viewRect = getViewRect(canvas)
+    
+    drawGrids(ctx, {
+      from: {
+        x: viewRect.x1,
+        y: viewRect.y1,
+      },
+      to: {
+        x: viewRect.x2,
+        y: viewRect.y2,
+      },
+      gridSize: gridSize
+    })
     
     elements.forEach((element) => {
       drawElement(rc, ctx, element)
     })
   }, [
-    elementMap,
-    cameraOffset,
-    cameraZoom,
-    zoomOrigin,
-    devicePixelRatio,
+      elementMap,
+      cameraOffset,
+      cameraZoom,
+      zoomOrigin,
+      gridSize,
+      devicePixelRatio,
   ])
   
   useEffect(() => {
