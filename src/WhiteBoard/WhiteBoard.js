@@ -65,6 +65,13 @@ function createWrappedElement (type, props){
     wrappedElement.roughElement = generator.line(x1, y1, x2, y2, roughOpts)
   } else if (type === ELEMENT_TYPE.RECTANGLE) {
     wrappedElement.roughElement = generator.rectangle(x1, y1, x2 - x1, y2 - y1, roughOpts)
+  } else if (type === ELEMENT_TYPE.DIAMOND) {
+    wrappedElement.roughElement = generator.polygon([
+      [(x1 + x2) / 2, y1],
+      [x2, (y1 + y2) / 2],
+      [(x1 + x2) / 2, y2],
+      [x1, (y1 + y2) / 2]
+    ], roughOpts)
   } else if (type === ELEMENT_TYPE.ELLIPSE) {
     const width = x2 - x1
     const height = y2 - y1

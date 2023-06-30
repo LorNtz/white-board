@@ -18,3 +18,5 @@ export {
   MAX_ZOOM,
   ADJUST_ZOOM_MODE,
 } from './zoom.js'
+
+export { ORIENTATION } from './geometry.js'

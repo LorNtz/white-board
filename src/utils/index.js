@@ -1,4 +1,5 @@
 import {
+  ORIENTATION,
   ELEMENT_TYPE,
 } from '../constants'
 
@@ -133,6 +134,64 @@ export function pointIsOnSegment (point, segment, opts) {
   }
 }
 
+export function getOrientationOfThreeOrderedPoints (p1, p2, p3) {
+  const value = (p2.y - p1.y) * (p3.x - p2.x) -
+    (p2.x - p1.x) * (p3.y - p2.y)
+
+  if (value === 0) return ORIENTATION.COLLINEAR
+
+  return value > 0 
+    ? ORIENTATION.CLOCKWISE 
+    : ORIENTATION.COUNTER_CLOCKWISE
+}
+
+export function isIntersect (segment1, segment2) {
+  const [p1, q1] = segment1
+  const [p2, q2] = segment2
+
+  const o1 = getOrientationOfThreeOrderedPoints(p1, q1, p2)
+  const o2 = getOrientationOfThreeOrderedPoints(p1, q1, q2)
+  const o3 = getOrientationOfThreeOrderedPoints(p2, q2, p1)
+  const o4 = getOrientationOfThreeOrderedPoints(p2, q2, q1)
+
+  if (o1 !== o2 && o3 !== o4) return true
+
+  if (
+    (o1 === ORIENTATION.COLLINEAR && pointIsOnSegment(p2, segment1)) 
+      || (o2 === ORIENTATION.COLLINEAR && pointIsOnSegment(q2, segment1))
+      || (o3 === ORIENTATION.COLLINEAR && pointIsOnSegment(p1, segment2))
+      || (o4 === ORIENTATION.COLLINEAR && pointIsOnSegment(q1, segment2))
+  ) {
+    return true
+  }
+
+  return false
+}
+
+export function posIsWithinPolygon (point, vertices) {
+  if (vertices.length < 3) {
+    return false
+  }
+  const tempSegment = [point, { x: point.x + 9999, y: point.y }]
+  let count = 0
+  for (let i = 0, j = vertices.length - 1; i < vertices.length; j = i++) {
+    const side = [vertices[j], vertices[i]]
+    if (isIntersect(side, tempSegment)) {
+      count += 1
+    }
+  }
+
+  return (count & 1) === 1
+}
+
+export function getCenterOfPoints (points) {
+  const n = points.length
+  let xSum = 0, ySum = 0
+  for (const { x, y } of points) {
+    xSum += x
+    ySum += y
+  }
+  return { x: xSum / n, y: ySum / n }
 }
 
 /**
@@ -153,6 +212,15 @@ export function posIsWithinElement ({ x, y }, element) {
       const maxY = Math.max(y1, y2)
       return x >= minX && x <= maxX && y >= minY && y <= maxY
     },
+    [ELEMENT_TYPE.DIAMOND]: () => {
+      const { x1, y1, x2, y2 } = element
+      return posIsWithinPolygon({ x, y }, [
+        { x: (x1 + x2) / 2, y: y1 },
+        { x: x2, y: (y1 + y2) / 2 },
+        { x: (x1 + x2) / 2, y: y2 },
+        { x: x1, y: (y1 + y2) / 2 }
+      ])
+    },
     [ELEMENT_TYPE.LINE]: () => {
       const a = { x: x1, y: y1 }
       const b = { x: x2, y: y2 }
@@ -165,7 +233,7 @@ export function posIsWithinElement ({ x, y }, element) {
       const [a, b] = [(x2 - x1) / 2, (y2 - y1) / 2]
       const p = Math.pow((x - centerX), 2) / Math.pow(a, 2) 
                 + Math.pow((y - centerY), 2) / Math.pow(b, 2)
-      const epsilon = 0.2
+      const epsilon = 0.1
       return p <= 1 + epsilon
     },
     [ELEMENT_TYPE.TEXT]: () => {
