@@ -234,7 +234,7 @@ function WhiteBoard ({ width, height }) {
       origin: zoomOrigin
     })
     if (activeToolType === TOOL_TYPE.SELECTION) {
-      const element = getElementAtPosition(canvasX, canvasY, elements)
+      const element = getElementAtPosition({ x: canvasX, y: canvasY }, elements)
       if (element) {
         setCurrentAction('moving')
         setManipulatingElement({ ...element, offsetX: canvasX - element.x1, offsetY: canvasY - element.y1 })
@@ -365,7 +365,7 @@ function WhiteBoard ({ width, height }) {
     if (activeToolType === TOOL_TYPE.PAN) {
       setCanvasCursorType('grab')
     } else if (activeToolType === TOOL_TYPE.SELECTION) {
-      elements.some(element => posIsWithinElement(canvasX, canvasY, element)) 
+      elements.some(element => posIsWithinElement({ x: canvasX, y: canvasY }, element)) 
         ? setCanvasCursorType('move') 
         : setCanvasCursorType('default')
     } else {

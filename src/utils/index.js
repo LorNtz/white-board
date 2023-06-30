@@ -96,11 +96,43 @@ export const randomBetween = (a, b) => {
  * @param {WrappedElement} elements a list of elements to search in
  * @returns {element} the last added element where the given point is within
  */
-export function getElementAtPosition (x, y, elements) {
+export function getElementAtPosition ({ x, y }, elements) {
   const elementsCopy = [...elements]
   return elementsCopy
     .reverse()
-    .find(element => posIsWithinElement(x, y, element))
+    .find(element => posIsWithinElement({ x, y }, element))
+}
+
+export function pointIsOnSegment (point, segment, opts) {
+  const { x, y } = point
+  const { x: x1, y: y1 } = segment[0]
+  const { x: x2, y: y2 } = segment[1]
+
+  const lengthSquared = Math.pow(y2 - y1, 2) + Math.pow(x2 - x1, 2)
+  if (lengthSquared === 0) {
+    return false // The segment is actually a point
+  }
+
+  const t = ((x - x1) * (x2 - x1) + (y - y1) * (y2 - y1)) / lengthSquared
+  let distanceToSegment
+
+  if (t < 0) {
+    distanceToSegment = Math.sqrt(Math.pow(x - x1, 2) + Math.pow(y - y1, 2))
+  } else if (t > 1) {
+    distanceToSegment = Math.sqrt(Math.pow(x - x2, 2) + Math.pow(y - y2, 2))
+  } else {
+    const projectedX = x1 + t * (x2 - x1)
+    const projectedY = y1 + t * (y2 - y1)
+    distanceToSegment = Math.sqrt(Math.pow(x - projectedX, 2) + Math.pow(y - projectedY, 2))
+  }
+
+  if (opts && typeof opts.epsilon === 'number' && opts.epsilon > 0) {
+    return distanceToSegment <= opts.epsilon
+  } else {
+    return distanceToSegment === 0
+  }
+}
+
 }
 
 /**
@@ -110,7 +142,7 @@ export function getElementAtPosition (x, y, elements) {
  * @param {WrappedElement} element element to perform the hit test
  * @returns {Boolean} result of hit test, true if the given point is within the element
  */
-export function posIsWithinElement (x, y, element) {
+export function posIsWithinElement ({ x, y }, element) {
   const { x1, y1, x2, y2, type } = element
 
   const checkers = {
@@ -125,9 +157,8 @@ export function posIsWithinElement (x, y, element) {
       const a = { x: x1, y: y1 }
       const b = { x: x2, y: y2 }
       const c = { x, y }
-      const diff = distance2D(a, b) - distance2D(a, c) - distance2D(b, c)
-      const epsilon = 1
-      return Math.abs(diff) < epsilon
+      // TODO: divide epsilon with zoom
+      return pointIsOnSegment(c, [a, b], { epsilon: 10 })
     },
     [ELEMENT_TYPE.ELLIPSE]: () => {
       const [centerX, centerY] = [(x1 + x2) / 2, (y1 + y2) / 2]
