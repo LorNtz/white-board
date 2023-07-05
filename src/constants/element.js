@@ -6,5 +6,5 @@ export const ELEMENT_TYPE = {
   TEXT: 'text',
   IMAGE: 'image',
   CURVE: 'curve',
-  HANDDRAW: 'handdraw',
+  FREEDRAW: 'freedraw',
 }

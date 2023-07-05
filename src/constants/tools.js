@@ -5,7 +5,9 @@ import {
   DiamondThree as Diamond,
   Round,
   Minus as Line,
-  Text,
+  FontSize as Text,
+  // Write as Pen,
+  Pencil as Pen,
   Picture,
 } from '@icon-park/react'
 
@@ -16,6 +18,7 @@ export const TOOL_TYPE = {
   LINE: 'line',
   DIAMOND: 'diamond',
   ELLIPSE: 'ellipse',
+  FREEDRAW: 'freedraw',
   TEXT: 'text',
   IMAGE: 'image',
 }
@@ -44,6 +47,10 @@ export const TOOLS = [
   {
     icon: <Round />,
     value: TOOL_TYPE.ELLIPSE,
+  },
+  {
+    icon: <Pen />,
+    value: TOOL_TYPE.FREEDRAW,
   },
   {
     icon: <Text />,

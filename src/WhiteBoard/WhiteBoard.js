@@ -23,6 +23,7 @@ import {
   getSeedFromRoughElement,
   getButtonNameFromMouseEvent,
   getPositionFromMouseOrTouchEvent,
+  getSvgPathFromHandDrawSamplePoints,
 } from "../utils";
 import {
   useFont,
@@ -77,6 +78,8 @@ function createWrappedElement (type, props){
     const height = y2 - y1
     const [x, y] = [x1 + width / 2, y1 + height / 2]
     wrappedElement.roughElement = generator.ellipse(x, y, width, height, roughOpts)
+  } else if (type === ELEMENT_TYPE.FREEDRAW) {
+    wrappedElement.strokePoints = props.strokePoints
   } else if (type === ELEMENT_TYPE.TEXT) {
     const preprocessedText = getPreprocessedText(text)
     wrappedElement.textObject = createTextObject({ rawText: preprocessedText })
@@ -106,6 +109,11 @@ function drawElement (roughCanvas, context, element) {
     case ELEMENT_TYPE.DIAMOND:
     case ELEMENT_TYPE.RECTANGLE:
       roughCanvas.draw(element.roughElement)
+      break
+    case ELEMENT_TYPE.FREEDRAW:
+      const pathString = getSvgPathFromHandDrawSamplePoints(element.strokePoints)
+      const path = new Path2D(pathString)
+      context.fill(path)
       break
     case ELEMENT_TYPE.TEXT:
       context.save()
@@ -190,7 +198,7 @@ function WhiteBoard ({ width, height }) {
   
   const [currentAction, setCurrentAction] = useState('none')
   const [activeToolType, setActiveToolType] = useState(TOOL_TYPE.SELECTION)
-  const [manipulatingElement, setManipulatingElement] = useState(null)
+  const manipulatingElementRef = useRef(null)
 
   const devicePixelRatio = useDevicePixelRatio()
   const [cameraOffset, setCameraOffset] = useState({ x: 0, y: 0 })
@@ -244,7 +252,11 @@ function WhiteBoard ({ width, height }) {
       const element = getElementAtPosition({ x: canvasX, y: canvasY }, elements)
       if (element) {
         setCurrentAction('moving')
-        setManipulatingElement({ ...element, offsetX: canvasX - element.x1, offsetY: canvasY - element.y1 })
+        manipulatingElementRef.current = {
+          ...element,
+          offsetX: canvasX - element.x1,
+          offsetY: canvasY - element.y1,
+        }
       }
     } else if (
       [
@@ -252,20 +264,29 @@ function WhiteBoard ({ width, height }) {
         TOOL_TYPE.RECTANGLE,
         TOOL_TYPE.DIAMOND,
         TOOL_TYPE.ELLIPSE,
+        TOOL_TYPE.FREEDRAW,
       ].includes(activeToolType)
     ) {
       setCurrentAction('drawing')
       const zIndex = elements.length
       const elementType = TOOL_ELEMENT_MAP[activeToolType]
-      const element = createWrappedElement(elementType, {
-        zIndex,
-        x1: canvasX,
-        y1: canvasY,
-        x2: canvasX,
-        y2: canvasY,
-      })
+      let element
+      if (elementType === ELEMENT_TYPE.FREEDRAW) {
+        element = createWrappedElement(ELEMENT_TYPE.FREEDRAW, {
+          zIndex,
+          strokePoints: [{ x: canvasX, y: canvasY }]
+        })
+      } else {
+        element = createWrappedElement(elementType, {
+          zIndex,
+          x1: canvasX,
+          y1: canvasY,
+          x2: canvasX,
+          y2: canvasY,
+        })
+      }
       setElement(element.id, element)
-      setManipulatingElement(element)
+      manipulatingElementRef.current = element
     } else if (activeToolType === TOOL_TYPE.TEXT) {
       setActiveToolType(TOOL_TYPE.SELECTION)
       setCurrentAction('typing')
@@ -282,7 +303,7 @@ function WhiteBoard ({ width, height }) {
         font: defaultFont,
       })
       setElement(element.id, element)
-      setManipulatingElement(element)
+      manipulatingElementRef.current = element
       deselectElements()
     }
   }
@@ -295,7 +316,7 @@ function WhiteBoard ({ width, height }) {
   }
 
   function submitText () {
-    const textElement = manipulatingElement
+    const textElement = manipulatingElementRef.current
     const textarea = textAreaRef.current
     let text = textarea.value
     const lineCount = text.split('\n').length
@@ -304,7 +325,7 @@ function WhiteBoard ({ width, height }) {
       : textarea.scrollHeight / 2
     if (text.trim() === '') {
       deleteElement(textElement.id)
-      setManipulatingElement(null)
+      manipulatingElementRef.current = null
     } else {
       updateElement(textElement.id, { text, lineHeight })
     }
@@ -316,7 +337,7 @@ function WhiteBoard ({ width, height }) {
     // TODO: implementation
   }
 
-  const updateElement = (id, { x1, y1, x2, y2, text, font, lineHeight }) => {
+  const updateElement = (id, { x1, y1, x2, y2, text, font, lineHeight, strokePoints }) => {
     const element = elementMap.get(id)
     let updatedElement
     switch (element.type) {
@@ -334,6 +355,18 @@ function WhiteBoard ({ width, height }) {
           seed,
         })
         setElement(id, updatedElement)
+        break
+
+      case ELEMENT_TYPE.FREEDRAW:
+        updatedElement = createWrappedElement(ELEMENT_TYPE.FREEDRAW, {
+          id,
+          strokePoints
+        })
+        setElement(id, updatedElement)
+        // remember, we are updating the element by creating a new one
+        // and updating a freedraw always needs the newest strokePoints
+        // thus don't forget to update manipulatingElementRef
+        manipulatingElementRef.current = updatedElement
         break
 
       case ELEMENT_TYPE.TEXT:
@@ -390,17 +423,23 @@ function WhiteBoard ({ width, height }) {
       return
     }
     
+    const manipulatingElement = manipulatingElementRef.current
     if (currentAction === 'drawing') {
-      const { id, x1, y1 } = manipulatingElement
       const [ x2, y2 ] = [canvasX, canvasY]
-      
-      updateElement(id, {
-        x1,
-        y1,
-        x2,
-        y2,
-      })
-      
+      if (manipulatingElement.type === ELEMENT_TYPE.FREEDRAW) {
+        const { id, strokePoints } = manipulatingElement
+        updateElement(id, {
+          strokePoints: [...strokePoints, { x: canvasX, y: canvasY }]
+        })
+      } else {
+        const { id, x1, y1 } = manipulatingElement
+        updateElement(id, {
+          x1,
+          y1,
+          x2,
+          y2,
+        })
+      }
     } else if (currentAction === 'moving') {
       const { id, x1, x2, y1, y2, offsetX, offsetY } = manipulatingElement
       const width = x2 - x1
@@ -427,7 +466,7 @@ function WhiteBoard ({ width, height }) {
     }
     
     setCurrentAction('none')
-    setManipulatingElement(null)
+    manipulatingElementRef.current = null
   }
 
   const handleMouseOut = () => {
@@ -499,7 +538,7 @@ function WhiteBoard ({ width, height }) {
     const textarea = textAreaRef.current
     const text = textarea.value
     
-    const fontString = manipulatingElement.font.fontString
+    const fontString = manipulatingElementRef.current.font.fontString
     const width = measureTextWidth(text, fontString)
     textarea.style.width = `${width}px`
     
@@ -573,10 +612,7 @@ function WhiteBoard ({ width, height }) {
         textArea.focus()
       }, 0)
     }
-  }, [currentAction, manipulatingElement])
-  // INFO: notice that textarea uses position info of manipulatingElement
-  // thus manipulatingElement is a implicit dependency and should be put in the dep list
-  // otherwise textarea won't gain focus when it rerenders while currentAction doesn't change
+  }, [currentAction])
   
   return (
     <StageStateContext.Provider value={{
