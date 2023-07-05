@@ -545,10 +545,10 @@ function WhiteBoard ({ width, height }) {
     textarea.style.height = `${textarea.scrollHeight}px`
   }
   
-  useEffect(() => {
+  useLayoutEffect(() => {
     const canvas = canvasRef.current
-    fixResolution(canvas)
-  }, [])
+    fixResolution(canvas, width, height)
+  }, [width, height])
   
   useLayoutEffect(() => {
     // TODO: extract these lines into a handleRef function
@@ -598,6 +598,8 @@ function WhiteBoard ({ width, height }) {
     })
   }, [
       elementMap,
+      width,
+      height,
       cameraOffset,
       cameraZoom,
       zoomOrigin,

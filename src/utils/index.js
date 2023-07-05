@@ -48,13 +48,11 @@ export function getViewRect (canvas) {
  * fix the resolution issue on a given canvas element
  * @param {HTMLCanvasElement} canvas the canvas element to be fixed with resolution
  */
-export function fixResolution (canvas) {
+export function fixResolution (canvas, width, height) {
   if (!canvas) return
   
   const context = canvas.getContext('2d')
   const ratio = window.devicePixelRatio || 1
-
-  const { width, height } = canvas.getBoundingClientRect()
 
   canvas.width = width * ratio
   canvas.height = height * ratio
