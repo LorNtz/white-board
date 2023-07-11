@@ -10,21 +10,26 @@ import {
 import rough from 'roughjs/bundled/rough.esm'
 import {
   clamp,
-  uuid24bit,
   getViewRect,
   fixResolution,
-  getFontMetrics,
-  createTextObject,
   measureTextWidth,
   posIsWithinElement,
   screenToCanvasCoord,
-  getPreprocessedText,
   getElementAtPosition,
   getSeedFromRoughElement,
   getButtonNameFromMouseEvent,
   getPositionFromMouseOrTouchEvent,
   getSvgPathFromHandDrawSamplePoints,
 } from "../utils";
+import {
+  createLineElement,
+  createTextElement,
+  createDiamondElement,
+  createEllipseElement,
+  createPolygonElement,
+  createFreedrawElement,
+  createRectangleElement,
+} from '../utils/elements.js'
 import {
   useFont,
   useCursorType,
@@ -36,7 +41,6 @@ import {
   MAX_ZOOM,
   TOOL_TYPE,
   ELEMENT_TYPE,
-  TOOL_ELEMENT_MAP,
   ADJUST_ZOOM_MODE,
 } from '../constants'
 import './WhiteBoard.css'
@@ -45,61 +49,7 @@ import UI from '../components/UI';
 
 const generator = rough.generator()
 
-function createWrappedElement (type, props){
-  const { zIndex, id, x1, y1, x2, y2, text, font, seed, lineHeight } = props
-
-  let wrappedElement = {
-    type,
-    zIndex,
-    x1,
-    y1,
-    x2,
-    y2,
-    id: id ?? uuid24bit()
-  }
-  
-  let roughOpts = {
-    seed: seed || rough.newSeed(),
-  }
-  
-  if (type === ELEMENT_TYPE.LINE) {
-    wrappedElement.roughElement = generator.line(x1, y1, x2, y2, roughOpts)
-  } else if (type === ELEMENT_TYPE.RECTANGLE) {
-    wrappedElement.roughElement = generator.rectangle(x1, y1, x2 - x1, y2 - y1, roughOpts)
-  } else if (type === ELEMENT_TYPE.DIAMOND) {
-    wrappedElement.roughElement = generator.polygon([
-      [(x1 + x2) / 2, y1],
-      [x2, (y1 + y2) / 2],
-      [(x1 + x2) / 2, y2],
-      [x1, (y1 + y2) / 2]
-    ], roughOpts)
-  } else if (type === ELEMENT_TYPE.ELLIPSE) {
-    const width = x2 - x1
-    const height = y2 - y1
-    const [x, y] = [x1 + width / 2, y1 + height / 2]
-    wrappedElement.roughElement = generator.ellipse(x, y, width, height, roughOpts)
-  } else if (type === ELEMENT_TYPE.FREEDRAW) {
-    wrappedElement.strokePoints = props.strokePoints
-  } else if (type === ELEMENT_TYPE.TEXT) {
-    const preprocessedText = getPreprocessedText(text)
-    wrappedElement.textObject = createTextObject({ rawText: preprocessedText })
-    wrappedElement.font = font
-    const fontString = font.fontString
-    const { width, height, baseline } = getFontMetrics(preprocessedText, fontString)
-    wrappedElement.width = width
-    wrappedElement.height = height
-    wrappedElement.x2 = x1 + width
-    wrappedElement.y2 = y1 + height
-    wrappedElement.baseline = baseline
-    wrappedElement.lineHeight = lineHeight
-  } else {
-    throw new Error(`creation of element of ${type} type is not implemented yet`)
-  }
-  
-  return wrappedElement
-}
-
-function drawElement (roughCanvas, context, element) {
+function drawElement (roughCanvas, context2D, element) {
   const { type } = element
   
   switch (type) {
@@ -111,29 +61,41 @@ function drawElement (roughCanvas, context, element) {
       roughCanvas.draw(element.roughElement)
       break
     case ELEMENT_TYPE.FREEDRAW:
-      const pathString = getSvgPathFromHandDrawSamplePoints(element.strokePoints)
+      const pathString = getSvgPathFromHandDrawSamplePoints(element.coords)
       const path = new Path2D(pathString)
-      context.fill(path)
+      context2D.fill(path)
       break
     case ELEMENT_TYPE.TEXT:
-      context.save()
+      context2D.save()
       
       const fontString = element.font.fontString
-      context.font = fontString
+      context2D.font = fontString
       const { lines } = element.textObject
       const { height, baseline } = element
       const lineHeight = element.lineHeight
       // const lineHeight = getLineHeightOfFont(fontString) // not accurate enough
       const verticalOffset = height - baseline
       
+      const [x1, y1] = element.coords[0]
       for (let index = 0; index < lines.length; index++) {
         const line = lines[index]
-        const x = element.x1
-        const y = element.y1 + (index + 1) * lineHeight - verticalOffset
-        context.fillText(line, x, y)
+        const x = x1
+        const y = y1 + (index + 1) * lineHeight - verticalOffset
+        context2D.fillText(line, x, y)
+        
+        // INFO: visualize textBaseline('alphabet' by default) for every line
+        // context.save()
+        // context.lineWidth = 1
+        // context.beginPath()
+        // const lineWidth = context.measureText(line).width
+        // console.log(`actually drawn: ${lineHeight}, but should be: ${textareaHeight}`)
+        // context.moveTo(element.x1, element.y1 + (index + 1) * textareaHeight/*  - verticalOffset */)
+        // context.lineTo(element.x1 + lineWidth, element.y1 + (index + 1) * textareaHeight/*  - verticalOffset */)
+        // context.stroke()
+        // context.restore()
       }
 
-      context.restore()
+      context2D.restore()
       break
 
     default:
@@ -141,39 +103,39 @@ function drawElement (roughCanvas, context, element) {
   }
 }
 
-function drawGrids (context, { from, to, gridSize }) {
-  context.save()
-  const { a: zoom } = context.getTransform()
+function drawGrids (context2D, { from, to, gridSize }) {
+  context2D.save()
+  const { a: zoom } = context2D.getTransform()
 
-  context.lineWidth = 1 / zoom
-  context.strokeStyle = 'rgba(0, 0, 0, 0.1)'
-  context.beginPath()
+  context2D.lineWidth = 1 / zoom
+  context2D.strokeStyle = 'rgba(0, 0, 0, 0.1)'
+  context2D.beginPath()
   
   // vertical lines
   for (let x = from.x - (from.x % gridSize); x < to.x; x += gridSize) {
-    context.moveTo(x, from.y)
-    context.lineTo(x, to.y)
+    context2D.moveTo(x, from.y)
+    context2D.lineTo(x, to.y)
   }
   // horizontal lines
   for (let y = from.y - (from.y % gridSize); y < to.y; y += gridSize) {
-    context.moveTo(from.x, y)
-    context.lineTo(to.x, y)
+    context2D.moveTo(from.x, y)
+    context2D.lineTo(to.x, y)
   }
-  context.stroke()
+  context2D.stroke()
   
-  context.lineWidth = 2 / zoom
-  context.beginPath()
+  context2D.lineWidth = 2 / zoom
+  context2D.beginPath()
   for (let x = from.x - (from.x % (4 * gridSize)); x < to.x; x += 4 * gridSize) {
-    context.moveTo(x, from.y)
-    context.lineTo(x, to.y)
+    context2D.moveTo(x, from.y)
+    context2D.lineTo(x, to.y)
   }
   for (let y = from.y - (from.y % (4 * gridSize)); y < to.y; y += 4 * gridSize) {
-    context.moveTo(from.x, y)
-    context.lineTo(to.x, y)
+    context2D.moveTo(from.x, y)
+    context2D.lineTo(to.x, y)
   }
-  context.stroke()
+  context2D.stroke()
 
-  context.restore()
+  context2D.restore()
 }
 
 // TODO: move this into a ref and maybe create a custom hook for it
@@ -248,14 +210,16 @@ function WhiteBoard ({ width, height }) {
       zoom: cameraZoom,
       origin: zoomOrigin
     })
+    
     if (activeToolType === TOOL_TYPE.SELECTION) {
       const element = getElementAtPosition({ x: canvasX, y: canvasY }, elements)
       if (element) {
         setCurrentAction('moving')
+        const [x1, y1] = element.coords[0]
         manipulatingElementRef.current = {
           ...element,
-          offsetX: canvasX - element.x1,
-          offsetY: canvasY - element.y1,
+          offsetX: canvasX - x1,
+          offsetY: canvasY - y1,
         }
       }
     } else if (
@@ -269,21 +233,45 @@ function WhiteBoard ({ width, height }) {
     ) {
       setCurrentAction('drawing')
       const zIndex = elements.length
-      const elementType = TOOL_ELEMENT_MAP[activeToolType]
       let element
-      if (elementType === ELEMENT_TYPE.FREEDRAW) {
-        element = createWrappedElement(ELEMENT_TYPE.FREEDRAW, {
-          zIndex,
-          strokePoints: [{ x: canvasX, y: canvasY }]
-        })
-      } else {
-        element = createWrappedElement(elementType, {
-          zIndex,
-          x1: canvasX,
-          y1: canvasY,
-          x2: canvasX,
-          y2: canvasY,
-        })
+      switch (activeToolType) {
+        case TOOL_TYPE.LINE:
+          element = createLineElement(generator, {
+            coords: [[canvasX, canvasY], [canvasX, canvasY]],
+            roughSettings: {}
+          })
+          break
+          
+        case TOOL_TYPE.RECTANGLE:
+          element = createRectangleElement(generator, {
+            coords: [[canvasX, canvasY], [canvasX, canvasY]],
+            roughSettings: {}
+          })
+          break
+          
+        case TOOL_TYPE.DIAMOND:
+          element = createDiamondElement(generator, {
+            coords: [[canvasX, canvasY], [canvasX, canvasY]],
+            roughSettings: {}
+          })
+          break
+          
+        case TOOL_TYPE.ELLIPSE:
+          element = createEllipseElement(generator, {
+            coords: [[canvasX, canvasY], [canvasX, canvasY]],
+            roughSettings: {}
+          })
+          break
+          
+        case TOOL_TYPE.FREEDRAW:
+          element = createFreedrawElement({
+            zIndex,
+            coords: [[canvasX, canvasY]],
+          })
+          break
+          
+        default:
+          break
       }
       setElement(element.id, element)
       manipulatingElementRef.current = element
@@ -295,12 +283,11 @@ function WhiteBoard ({ width, height }) {
         screenY: clientY,
       })
       const zIndex = elements.length
-      const element = createWrappedElement(ELEMENT_TYPE.TEXT, {
+      const element = createTextElement({
         zIndex,
-        x1: canvasX,
-        y1: canvasY,
+        coords: [[canvasX, canvasY]],
         text: '',
-        font: defaultFont,
+        font: defaultFont
       })
       setElement(element.id, element)
       manipulatingElementRef.current = element
@@ -337,32 +324,56 @@ function WhiteBoard ({ width, height }) {
     // TODO: implementation
   }
 
-  const updateElement = (id, { x1, y1, x2, y2, text, font, lineHeight, strokePoints }) => {
+  const updateElement = (id, { coords, text, font, lineHeight, }) => {
     const element = elementMap.get(id)
     let updatedElement
+    
     switch (element.type) {
       case ELEMENT_TYPE.LINE:
-      case ELEMENT_TYPE.RECTANGLE:
-      case ELEMENT_TYPE.ELLIPSE:
-      case ELEMENT_TYPE.DIAMOND:
-        const seed = getSeedFromRoughElement(element.roughElement)
-        updatedElement = createWrappedElement(element.type, {
+        updatedElement = createLineElement(generator, {
           id,
-          x1,
-          y1,
-          x2,
-          y2,
-          seed,
+          coords,
+          roughSettings: {
+            seed: getSeedFromRoughElement(element.roughElement),
+          }
         })
-        setElement(id, updatedElement)
+        break
+        
+      case ELEMENT_TYPE.RECTANGLE:
+        updatedElement = createRectangleElement(generator, {
+          id,
+          coords,
+          roughSettings: {
+            seed: getSeedFromRoughElement(element.roughElement),
+          }
+        })
+        break
+        
+      case ELEMENT_TYPE.ELLIPSE:
+        updatedElement = createEllipseElement(generator, {
+          id,
+          coords,
+          roughSettings: {
+            seed: getSeedFromRoughElement(element.roughElement),
+          }
+        })
+        break
+        
+      case ELEMENT_TYPE.DIAMOND:
+        updatedElement = createDiamondElement(generator, {
+          id,
+          coords,
+          roughSettings: {
+            seed: getSeedFromRoughElement(element.roughElement),
+          }
+        })
         break
 
       case ELEMENT_TYPE.FREEDRAW:
-        updatedElement = createWrappedElement(ELEMENT_TYPE.FREEDRAW, {
+        updatedElement = createFreedrawElement({
           id,
-          strokePoints
+          coords,
         })
-        setElement(id, updatedElement)
         // remember, we are updating the element by creating a new one
         // and updating a freedraw always needs the newest strokePoints
         // thus don't forget to update manipulatingElementRef
@@ -370,20 +381,19 @@ function WhiteBoard ({ width, height }) {
         break
 
       case ELEMENT_TYPE.TEXT:
-        updatedElement = createWrappedElement(ELEMENT_TYPE.TEXT, {
+        updatedElement = createTextElement({
           id,
-          x1: x1 ? x1 : element.x1,
-          y1: y1 ? y1 : element.y1,
+          coords: coords ? [coords[0]] : [element.coords[0]],
           text: text ? text : element.textObject.rawText,
           font: font ? font : element.font,
           lineHeight: lineHeight ? lineHeight : element.lineHeight
         })
-        setElement(id, updatedElement)
         break
 
       default:
         throw new Error(`Cannot update element with type ${element.type}`)
     }
+    setElement(id, updatedElement)
   }
   
   const handleMouseMove = (event) => {
@@ -402,6 +412,7 @@ function WhiteBoard ({ width, height }) {
       origin: zoomOrigin
     })
     
+    // TODO: set cursor type to 'text' when text tool is selected
     if (activeToolType === TOOL_TYPE.PAN) {
       setCanvasCursorType('grab')
     } else if (activeToolType === TOOL_TYPE.SELECTION) {
@@ -425,23 +436,24 @@ function WhiteBoard ({ width, height }) {
     
     const manipulatingElement = manipulatingElementRef.current
     if (currentAction === 'drawing') {
-      const [ x2, y2 ] = [canvasX, canvasY]
       if (manipulatingElement.type === ELEMENT_TYPE.FREEDRAW) {
-        const { id, strokePoints } = manipulatingElement
+        const { id, coords } = manipulatingElement
         updateElement(id, {
-          strokePoints: [...strokePoints, { x: canvasX, y: canvasY }]
+          coords: [...coords, [canvasX, canvasY]]
         })
       } else {
-        const { id, x1, y1 } = manipulatingElement
+        const { id, coords } = manipulatingElement
         updateElement(id, {
-          x1,
-          y1,
-          x2,
-          y2,
+          coords: [coords[0], [canvasX, canvasY]]
         })
       }
     } else if (currentAction === 'moving') {
-      const { id, x1, x2, y1, y2, offsetX, offsetY } = manipulatingElement
+      const {
+        id,
+        coords: [[x1, y1], [x2, y2]],
+        offsetX,
+        offsetY,
+      } = manipulatingElement
       const width = x2 - x1
       const height = y2 - y1
       // TODO: set a threshold to prevent unwanted minor move
@@ -449,10 +461,7 @@ function WhiteBoard ({ width, height }) {
       const nextY = canvasY - offsetY
       
       updateElement(id, {
-        x1: nextX,
-        y1: nextY,
-        x2: nextX + width,
-        y2: nextY + height,
+        coords: [[nextX, nextY], [nextX + width, nextY + height]]
       })
     }
   }

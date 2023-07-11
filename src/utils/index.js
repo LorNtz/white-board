@@ -91,6 +91,15 @@ export const randomBetween = (a, b) => {
   return a + Math.random() * (b - a)
 }
 
+export const getXYFromPoint2D = point => {
+  if (Array.isArray(point)) {
+    return point
+  }
+  else {
+    return [point.x, point.y]
+  }
+}
+
 /**
  * search for the foremost element where the given point is within
  * @param {Number} x x coordinate of the given point
@@ -136,8 +145,11 @@ export function pointIsOnSegment (point, segment, opts) {
 }
 
 export function getOrientationOfThreeOrderedPoints (p1, p2, p3) {
-  const value = (p2.y - p1.y) * (p3.x - p2.x) -
-    (p2.x - p1.x) * (p3.y - p2.y)
+  const [x1, y1] = getXYFromPoint2D(p1)
+  const [x2, y2] = getXYFromPoint2D(p2)
+  const [x3, y3] = getXYFromPoint2D(p3)
+  const value = (y2 - y1) * (x3 - x2) -
+    (x2 - x1) * (y3 - y2)
 
   if (value === 0) return ORIENTATION.COLLINEAR
 
@@ -203,7 +215,8 @@ export function getCenterOfPoints (points) {
  * @returns {Boolean} result of hit test, true if the given point is within the element
  */
 export function posIsWithinElement ({ x, y }, element) {
-  const { x1, y1, x2, y2, type } = element
+  const { coords, type } = element
+  const [[x1, y1], [x2, y2]] = coords
 
   const checkers = {
     [ELEMENT_TYPE.RECTANGLE]: () => {
@@ -214,12 +227,11 @@ export function posIsWithinElement ({ x, y }, element) {
       return x >= minX && x <= maxX && y >= minY && y <= maxY
     },
     [ELEMENT_TYPE.DIAMOND]: () => {
-      const { x1, y1, x2, y2 } = element
       return posIsWithinPolygon({ x, y }, [
-        { x: (x1 + x2) / 2, y: y1 },
-        { x: x2, y: (y1 + y2) / 2 },
-        { x: (x1 + x2) / 2, y: y2 },
-        { x: x1, y: (y1 + y2) / 2 }
+        [(x1 + x2) / 2, y1],
+        [x2, (y1 + y2) / 2],
+        [(x1 + x2) / 2, y2],
+        [x1, (y1 + y2) / 2]
       ])
     },
     [ELEMENT_TYPE.LINE]: () => {
@@ -415,6 +427,6 @@ export function getSvgPathFromStroke(points, closed = true) {
   return result
 }
 
-export function getSvgPathFromHandDrawSamplePoints (points) {
-  return getSvgPathFromStroke(getStroke(points))
+export function getSvgPathFromHandDrawSamplePoints (points, opts) {
+  return getSvgPathFromStroke(getStroke(points, opts))
 }
