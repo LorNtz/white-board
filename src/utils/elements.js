@@ -368,3 +368,26 @@ export function createFreedrawElement (
     strokeOptions
   }
 }
+
+export function createImageElement (
+  {
+    id,
+    coords,
+    width,
+    height,
+    bitmap, // TODO: store a file id instead
+  }
+) {
+  const baseElement = createBaseElement({
+    id,
+    coords,
+    width,
+    height
+  })
+
+  return {
+    ...baseElement,
+    type: ELEMENT_TYPE.IMAGE,
+    bitmap
+  }
+}

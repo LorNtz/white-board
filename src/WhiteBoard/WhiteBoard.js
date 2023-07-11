@@ -24,6 +24,7 @@ import {
 import {
   createLineElement,
   createTextElement,
+  createImageElement,
   createDiamondElement,
   createEllipseElement,
   createPolygonElement,
@@ -96,6 +97,16 @@ function drawElement (roughCanvas, context2D, element) {
       }
 
       context2D.restore()
+      break
+
+    case ELEMENT_TYPE.IMAGE:
+      context2D.drawImage(
+        element.bitmap,
+        element.coords[0][0],
+        element.coords[0][1],
+        element.width,
+        element.height
+      )
       break
 
     default:
@@ -390,6 +401,16 @@ function WhiteBoard ({ width, height }) {
         })
         break
 
+      case ELEMENT_TYPE.IMAGE:
+        updatedElement = createImageElement({
+          id,
+          coords,
+          width: element.width,
+          height: element.height,
+          bitmap: element.bitmap
+        })
+        break
+
       default:
         throw new Error(`Cannot update element with type ${element.type}`)
     }
@@ -553,6 +574,53 @@ function WhiteBoard ({ width, height }) {
     
     textarea.style.height = `${textarea.scrollHeight}px`
   }
+
+  const insertImageElementsFromClipboardData = useCallback(async function (clipboardData) {
+    const { items } = clipboardData
+
+    for (const item of items) {
+      if(!item.type.startsWith('image/')) continue
+
+      const file = item.getAsFile()
+      const bitmap = await createImageBitmap(file)
+      const { width, height } = bitmap
+
+      const canvas = canvasRef.current
+      const {
+        x: canvasX,
+        y: canvasY,
+      } = screenToCanvasCoord(canvas, mouseState.x, mouseState.y, {
+        translateX: cameraOffset.x,
+        translateY: cameraOffset.y,
+        zoom: cameraZoom,
+        origin: zoomOrigin
+      })
+
+      const element = createImageElement({
+        coords: [
+          [canvasX - width / 2, canvasY - height / 2],
+          [canvasX + width / 2, canvasY + height / 2]
+        ],
+        bitmap,
+        width,
+        height
+      })
+      setElement(element.id, element)
+    }
+  }, [cameraOffset, cameraZoom, zoomOrigin, setElement])
+  
+  useEffect(() => {
+    async function handlePaste (event) {
+      if(!event.clipboardData?.items?.length) return
+      
+      insertImageElementsFromClipboardData(event.clipboardData)
+    }
+
+    window.addEventListener('paste', handlePaste)
+    return () => {
+      window.removeEventListener('paste', handlePaste)
+    }
+  }, [insertImageElementsFromClipboardData])
   
   useLayoutEffect(() => {
     const canvas = canvasRef.current

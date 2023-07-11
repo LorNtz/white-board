@@ -258,6 +258,13 @@ export function posIsWithinElement ({ x, y }, element) {
       const minY = Math.min(y1, y2)
       const maxY = Math.max(y1, y2)
       return x >= minX && x <= maxX && y >= minY && y <= maxY
+    },
+    [ELEMENT_TYPE.IMAGE]: () => {
+      const minX = Math.min(x1, x2)
+      const maxX = Math.max(x1, x2)
+      const minY = Math.min(y1, y2)
+      const maxY = Math.max(y1, y2)
+      return x >= minX && x <= maxX && y >= minY && y <= maxY
     }
   }
   
