@@ -14,7 +14,7 @@ import {
  * @param clientY {number} clientY
  * @returns {[number, number]} a tuple of corrected coordinates
  */
-export function screenToCanvasCoord (canvas, clientX, clientY, opt = {}) {
+export function screenToWorldCoord (canvas, clientX, clientY, opt = {}) {
   const translateX = opt.translateX ?? 0
   const translateY = opt.translateY ?? 0
   const zoom = opt.zoom ?? 1
@@ -107,11 +107,11 @@ export const getXYFromPoint2D = point => {
  * @param {WrappedElement} elements a list of elements to search in
  * @returns {element} the last added element where the given point is within
  */
-export function getElementAtPosition ({ x, y }, elements) {
+export function getElementAtPosition ({ worldX, worldY, clientX, clientY }, elements, canvas) {
   const elementsCopy = [...elements]
   return elementsCopy
     .reverse()
-    .find(element => posIsWithinElement({ x, y }, element))
+    .find(element => posIsWithinElement({ worldX, worldY, clientX, clientY }, element, canvas))
 }
 
 export function pointIsOnSegment (point, segment, opts) {
@@ -207,6 +207,18 @@ export function getCenterOfPoints (points) {
   return { x: xSum / n, y: ySum / n }
 }
 
+const getCanvasCoords = (canvas, clientX, clientY) => {
+  const canvasBoundingRect = canvas.getBoundingClientRect();
+  const scale = {
+    x: canvas.width / canvasBoundingRect.width,
+    y: canvas.height / canvasBoundingRect.height,
+  };
+  return {
+    x: (clientX - canvasBoundingRect.left) * scale.x,
+    y: (clientY - canvasBoundingRect.top) * scale.y,
+  };
+}
+
 /**
  * check if a point is within an element
  * @param {Number} x x coordinate of the point to be checked
@@ -214,7 +226,7 @@ export function getCenterOfPoints (points) {
  * @param {WrappedElement} element element to perform the hit test
  * @returns {Boolean} result of hit test, true if the given point is within the element
  */
-export function posIsWithinElement ({ x, y }, element) {
+export function posIsWithinElement ({ worldX, worldY, clientX, clientY }, element, canvas) {
   const { coords, type } = element
   const [[x1, y1], [x2, y2]] = coords
 
@@ -224,10 +236,10 @@ export function posIsWithinElement ({ x, y }, element) {
       const maxX = Math.max(x1, x2)
       const minY = Math.min(y1, y2)
       const maxY = Math.max(y1, y2)
-      return x >= minX && x <= maxX && y >= minY && y <= maxY
+      return worldX >= minX && worldX <= maxX && worldY >= minY && worldY <= maxY
     },
     [ELEMENT_TYPE.DIAMOND]: () => {
-      return posIsWithinPolygon({ x, y }, [
+      return posIsWithinPolygon({ x: worldX, y: worldY }, [
         [(x1 + x2) / 2, y1],
         [x2, (y1 + y2) / 2],
         [(x1 + x2) / 2, y2],
@@ -237,42 +249,46 @@ export function posIsWithinElement ({ x, y }, element) {
     [ELEMENT_TYPE.LINE]: () => {
       const a = { x: x1, y: y1 }
       const b = { x: x2, y: y2 }
-      const c = { x, y }
+      const c = { x: worldX, y: worldY }
       // TODO: divide epsilon with zoom
       return pointIsOnSegment(c, [a, b], { epsilon: 10 })
     },
     [ELEMENT_TYPE.ELLIPSE]: () => {
       const [centerX, centerY] = [(x1 + x2) / 2, (y1 + y2) / 2]
       const [a, b] = [(x2 - x1) / 2, (y2 - y1) / 2]
-      const p = Math.pow((x - centerX), 2) / Math.pow(a, 2) 
-                + Math.pow((y - centerY), 2) / Math.pow(b, 2)
+      const p = Math.pow((worldX - centerX), 2) / Math.pow(a, 2) 
+                + Math.pow((worldY - centerY), 2) / Math.pow(b, 2)
       const epsilon = 0.1
       return p <= 1 + epsilon
     },
     [ELEMENT_TYPE.FREEDRAW]: () => {
-      return false
+      const ctx = canvas.getContext('2d')
+      const pathStr = element.pathData
+      const path = new Path2D(pathStr)
+      const { x: canvasX, y: canvasY } = getCanvasCoords(canvas, clientX, clientY)
+      return ctx.isPointInPath(path, canvasX, canvasY)
     },
     [ELEMENT_TYPE.TEXT]: () => {
       const minX = Math.min(x1, x2)
       const maxX = Math.max(x1, x2)
       const minY = Math.min(y1, y2)
       const maxY = Math.max(y1, y2)
-      return x >= minX && x <= maxX && y >= minY && y <= maxY
+      return worldX >= minX && worldX <= maxX && worldY >= minY && worldY <= maxY
     },
     [ELEMENT_TYPE.IMAGE]: () => {
       const minX = Math.min(x1, x2)
       const maxX = Math.max(x1, x2)
       const minY = Math.min(y1, y2)
       const maxY = Math.max(y1, y2)
-      return x >= minX && x <= maxX && y >= minY && y <= maxY
+      return worldX >= minX && worldX <= maxX && worldY >= minY && worldY <= maxY
     }
   }
   
-  const isWithin = checkers[type]()
-  if (isWithin === undefined) {
+  if (checkers[type] === undefined) {
     throw new Error(`hit check for element type ${type} is not implemented yet.`)
   }
   
+  const isWithin = checkers[type]()
   return isWithin
 }
 

@@ -13,8 +13,9 @@ import {
   getViewRect,
   fixResolution,
   measureTextWidth,
+  getXYFromPoint2D,
   posIsWithinElement,
-  screenToCanvasCoord,
+  screenToWorldCoord,
   getElementAtPosition,
   getSeedFromRoughElement,
   getButtonNameFromMouseEvent,
@@ -213,9 +214,9 @@ function WhiteBoard ({ width, height }) {
     if (!mouseState.left) return
     
     const {
-      x: canvasX,
-      y: canvasY,
-    } = screenToCanvasCoord(canvas, clientX, clientY, {
+      x: worldX,
+      y: worldY,
+    } = screenToWorldCoord(canvas, clientX, clientY, {
       translateX: cameraOffset.x,
       translateY: cameraOffset.y,
       zoom: cameraZoom,
@@ -223,14 +224,18 @@ function WhiteBoard ({ width, height }) {
     })
     
     if (activeToolType === TOOL_TYPE.SELECTION) {
-      const element = getElementAtPosition({ x: canvasX, y: canvasY }, elements)
+      const element = getElementAtPosition(
+        { worldX, worldY, clientX, clientY },
+        elements,
+        canvas
+      )
       if (element) {
         setCurrentAction('moving')
         const [x1, y1] = element.coords[0]
         manipulatingElementRef.current = {
           ...element,
-          offsetX: canvasX - x1,
-          offsetY: canvasY - y1,
+          offsetX: worldX,
+          offsetY: worldY,
         }
       }
     } else if (
@@ -248,28 +253,28 @@ function WhiteBoard ({ width, height }) {
       switch (activeToolType) {
         case TOOL_TYPE.LINE:
           element = createLineElement(generator, {
-            coords: [[canvasX, canvasY], [canvasX, canvasY]],
+            coords: [[worldX, worldY], [worldX, worldY]],
             roughSettings: {}
           })
           break
           
         case TOOL_TYPE.RECTANGLE:
           element = createRectangleElement(generator, {
-            coords: [[canvasX, canvasY], [canvasX, canvasY]],
+            coords: [[worldX, worldY], [worldX, worldY]],
             roughSettings: {}
           })
           break
           
         case TOOL_TYPE.DIAMOND:
           element = createDiamondElement(generator, {
-            coords: [[canvasX, canvasY], [canvasX, canvasY]],
+            coords: [[worldX, worldY], [worldX, worldY]],
             roughSettings: {}
           })
           break
           
         case TOOL_TYPE.ELLIPSE:
           element = createEllipseElement(generator, {
-            coords: [[canvasX, canvasY], [canvasX, canvasY]],
+            coords: [[worldX, worldY], [worldX, worldY]],
             roughSettings: {}
           })
           break
@@ -277,7 +282,7 @@ function WhiteBoard ({ width, height }) {
         case TOOL_TYPE.FREEDRAW:
           element = createFreedrawElement({
             zIndex,
-            coords: [[canvasX, canvasY]],
+            coords: [[worldX, worldY]],
           })
           break
           
@@ -296,7 +301,7 @@ function WhiteBoard ({ width, height }) {
       const zIndex = elements.length
       const element = createTextElement({
         zIndex,
-        coords: [[canvasX, canvasY]],
+        coords: [[worldX, worldY]],
         text: '',
         font: defaultFont
       })
@@ -388,7 +393,9 @@ function WhiteBoard ({ width, height }) {
         // remember, we are updating the element by creating a new one
         // and updating a freedraw always needs the newest strokePoints
         // thus don't forget to update manipulatingElementRef
-        manipulatingElementRef.current = updatedElement
+        if (currentAction === 'drawing') {
+          manipulatingElementRef.current = updatedElement
+        }
         break
 
       case ELEMENT_TYPE.TEXT:
@@ -419,14 +426,14 @@ function WhiteBoard ({ width, height }) {
   
   const handleMouseMove = (event) => {
     const canvas = canvasRef.current
-    let { x, y } = getPositionFromMouseOrTouchEvent(event)
-    mouseState.x = x
-    mouseState.y = y
+    let { x: clientX, y: clientY } = getPositionFromMouseOrTouchEvent(event)
+    mouseState.x = clientX
+    mouseState.y = clientY
     
     const {
-      x: canvasX,
-      y: canvasY,
-    } = screenToCanvasCoord(canvas, x, y, {
+      x: worldX,
+      y: worldY,
+    } = screenToWorldCoord(canvas, clientX, clientY, {
       translateX: cameraOffset.x,
       translateY: cameraOffset.y,
       zoom: cameraZoom,
@@ -437,7 +444,11 @@ function WhiteBoard ({ width, height }) {
     if (activeToolType === TOOL_TYPE.PAN) {
       setCanvasCursorType('grab')
     } else if (activeToolType === TOOL_TYPE.SELECTION) {
-      elements.some(element => posIsWithinElement({ x: canvasX, y: canvasY }, element)) 
+      elements.some(element => posIsWithinElement(
+        { worldX, worldY, clientX, clientY }, 
+        element, 
+        canvas
+      )) 
         ? setCanvasCursorType('move') 
         : setCanvasCursorType('default')
     } else {
@@ -448,8 +459,8 @@ function WhiteBoard ({ width, height }) {
       setCanvasCursorType('grabbing')
       
       setCameraOffset({
-        x: x / cameraZoom - panningStartPos.x,
-        y: y / cameraZoom - panningStartPos.y
+        x: clientX / cameraZoom - panningStartPos.x,
+        y: clientY / cameraZoom - panningStartPos.y
       })
       
       return
@@ -460,30 +471,30 @@ function WhiteBoard ({ width, height }) {
       if (manipulatingElement.type === ELEMENT_TYPE.FREEDRAW) {
         const { id, coords } = manipulatingElement
         updateElement(id, {
-          coords: [...coords, [canvasX, canvasY]]
+          coords: [...coords, [worldX, worldY]]
         })
       } else {
         const { id, coords } = manipulatingElement
         updateElement(id, {
-          coords: [coords[0], [canvasX, canvasY]]
+          coords: [coords[0], [worldX, worldY]]
         })
       }
     } else if (currentAction === 'moving') {
       const {
         id,
-        coords: [[x1, y1], [x2, y2]],
+        coords,
         offsetX,
         offsetY,
       } = manipulatingElement
-      const width = x2 - x1
-      const height = y2 - y1
       // TODO: set a threshold to prevent unwanted minor move
-      const nextX = canvasX - offsetX
-      const nextY = canvasY - offsetY
-      
-      updateElement(id, {
-        coords: [[nextX, nextY], [nextX + width, nextY + height]]
+      const deltaX = worldX - offsetX
+      const deltaY = worldY - offsetY
+      const updatedCoords = coords.map(point => {
+        const [x, y] = getXYFromPoint2D(point)
+        return [x + deltaX, y + deltaY]
       })
+      
+      updateElement(id, { coords: updatedCoords })
     }
   }
 
@@ -587,9 +598,9 @@ function WhiteBoard ({ width, height }) {
 
       const canvas = canvasRef.current
       const {
-        x: canvasX,
-        y: canvasY,
-      } = screenToCanvasCoord(canvas, mouseState.x, mouseState.y, {
+        x: worldX,
+        y: worldY,
+      } = screenToWorldCoord(canvas, mouseState.x, mouseState.y, {
         translateX: cameraOffset.x,
         translateY: cameraOffset.y,
         zoom: cameraZoom,
@@ -598,8 +609,8 @@ function WhiteBoard ({ width, height }) {
 
       const element = createImageElement({
         coords: [
-          [canvasX - width / 2, canvasY - height / 2],
-          [canvasX + width / 2, canvasY + height / 2]
+          [worldX - width / 2, worldY - height / 2],
+          [worldX + width / 2, worldY + height / 2]
         ],
         bitmap,
         width,
